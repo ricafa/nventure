@@ -32,7 +32,7 @@ Não há domínio em PHP puro separado nem repositórios/contratos de persistên
 
 ## Ambiente Docker
 
-**Stack:** PHP 8.3 · Laravel 13 · PostgreSQL 15+ · Livewire 3 + Tailwind + Flux UI · Sanctum · Pest.
+**Stack:** PHP 8.3 · Laravel 13 · PostgreSQL 15+ · Livewire 4 + Tailwind + Flux UI · Fortify + Sanctum · Pest.
 A fundação do projeto está especificada em `specs/spec_parte_0.md` (Parte 0).
 
 A aplicação e os bancos de dados são executados via Docker Compose para garantir a paridade de ambiente.

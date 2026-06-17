@@ -71,7 +71,7 @@ A stack abaixo é a adotada no MVP. O princípio do polimorfismo no motor (§2.3
 - **Banco de dados:** PostgreSQL 15+ (necessário para o índice único parcial de `posicao_movimentacao`, tipos `NUMERIC` exatos e `JSONB`).
 - **ORM:** Eloquent, em arquitetura **MVC nativa com *fat model*** (ActiveRecord). O cálculo de MtM vive nos próprios Models Eloquent (§4); não há camada de domínio em PHP puro separada nem repositórios/contratos de persistência — os serviços de aplicação usam Eloquent diretamente. O polimorfismo do motor é preservado por uma fábrica de hidratação no próprio ORM (`newFromBuilder`, §4.5). Decisão de arquitetura: Alternativa A — *fat model* (cálculo nos Models, sem domínio puro separado), detalhada em §4 e §4.5.
 - **Migrations:** Migrations do Laravel (Schema builder).
-- **Frontend:** Blade + Livewire 3 (com Alpine.js para interações leves; Vite para empacotar CSS/JS e Tailwind). Telas server-rendered, sem SPA.
+- **Frontend:** Blade + Livewire 4 (com Alpine.js para interações leves; Vite para empacotar CSS/JS e Tailwind; Flux UI via starter kit). Telas server-rendered, sem SPA.
 - **Agendador:** Laravel Task Scheduler (uma entrada de cron chamando `php artisan schedule:run`) para disparar o processamento diário do motor.
 - **Autenticação:** Laravel Sanctum — sessão para a interface web Livewire e tokens de acesso para a API REST (§5). Hashing de senha com bcrypt/argon2id. Ver §9.2.
 

@@ -20,7 +20,7 @@
 |---|---|---|
 | **D-001** | Framework | **Laravel 13** (lançado mar/2026). |
 | **D-002** | PHP | **PHP 8.3** (piso do Laravel 13; suportado 8.3–8.5 — fixamos 8.3 por compatibilidade). |
-| **D-003** | Auth scaffold | **Starter kit oficial Livewire** (Livewire + Tailwind + **Flux UI**, auth de sessão *built-in* — **não** a variante WorkOS), **adaptado** à tabela `usuario`. |
+| **D-003** | Auth scaffold | **Starter kit oficial Livewire** (Livewire **4** + Tailwind + **Flux UI**), com auth *built-in* via **Laravel Fortify** (sessão) — **não** a variante WorkOS — **adaptado** à tabela `usuario`. |
 | **D-004** | CI | **GitHub Actions**, com PostgreSQL de teste como *service*. |
 | **D-005** | Banco de teste | Serviço Postgres separado (`postgres_test`, `tmpfs` — efêmero/rápido); testes apontam para ele. |
 | **D-006** | Análise estática | PHPStan/Larastan **nível 8** sobre `app/`, **excluindo** `Http/`, `Livewire/`, `Providers/`. |
@@ -64,8 +64,9 @@ de qualidade** (estilo + estática + testes) verde local e no CI.
 | Linguagem | **PHP 8.3** | Laravel 13 suporta 8.3–8.5; fixado 8.3 (D-002). |
 | Framework | **Laravel 13** | Esqueleto enxuto (sem `Http/Console Kernel`); `bootstrap/app.php` para middleware/exceções/agendamento. |
 | Banco | **PostgreSQL 15+** | Necessário p/ índice único parcial, `NUMERIC`, `JSONB` (Fase 1). |
-| UI | **Livewire 3 + Tailwind + Flux UI** | Via starter kit; server-rendered, sem SPA. |
-| Auth | **Laravel Sanctum** | Sessão (web) agora; tokens de API na Fase 10. |
+| UI | **Livewire 4 + Tailwind + Flux UI** | Via starter kit; server-rendered, sem SPA. (Frontend em `resources/views`.) |
+| Auth (scaffold) | **Laravel Fortify** | Provê login/registro/reset/verificação/2FA, configurados em `config/fortify.php`. É o que o starter kit usa. |
+| Tokens de API | **Laravel Sanctum** | Instalado nesta parte; emissão/uso de tokens só na Fase 10. |
 | Testes | **Pest** | `Feature` com banco; `Unit` sem banco. |
 | Estilo | **Laravel Pint** | `pint.json` na raiz. |
 | Estática | **Larastan/PHPStan** | Nível 8, exclusões D-006. |
@@ -94,18 +95,24 @@ de qualidade** (estilo + estática + testes) verde local e no CI.
 
 Criar o projeto selecionando o starter kit **Livewire** com **auth built-in** (não WorkOS):
 
-```bash
-# Caminho recomendado (Laravel Installer):
-laravel new nventure   # escolher: starter kit = Livewire; auth = built-in; testes = Pest
+O instalador do Laravel é **interativo** — não há flag `--livewire`. Ele pergunta o
+starter kit e o provedor de auth; selecione **Livewire** e **built-in** (Fortify),
+**não** WorkOS:
 
-# Alternativa (sem installer):
-# composer create-project laravel/laravel nventure
-# e então instalar o starter kit Livewire conforme a doc oficial.
+```bash
+composer global require laravel/installer   # se ainda não tiver o instalador
+laravel new nventure
+#   → starter kit:        Livewire
+#   → autenticação:       built-in (NÃO WorkOS)
+#   → testes:             Pest
+cd nventure
+npm install && npm run build
+composer run dev            # sobe o servidor de desenvolvimento
 ```
 
-> **A confirmar na implementação:** a flag/opção exata do instalador do Laravel 13 para o
-> starter kit Livewire *built-in*. Garantir que **não** seja selecionada a variante WorkOS
-> AuthKit. Ver §8 (Riscos).
+> A variante WorkOS AuthKit é uma opção separada no prompt — **não** selecioná-la (o MVP
+> não usa provedor externo). Kits de comunidade usariam `laravel new ... --using=vendor/kit`,
+> o que **não** se aplica aqui.
 
 ### 4.2 Docker
 
@@ -138,20 +145,29 @@ Criar três artefatos:
 
 ### 4.4 Adaptar a autenticação à tabela `usuario`
 
-O starter kit assume `users`/e-mail/registro. Adaptar ao §3.2.10 e §9.2:
+O starter kit usa **Laravel Fortify** e assume `users`/e-mail/registro. Adaptar ao
+§3.2.10 e §9.2:
 
 - **Model de usuário** → `$table = 'usuario'`; `getAuthPassword()` retorna `senha_hash`;
   cast `'senha_hash' => 'hashed'` (D-008); `public $timestamps = false` (a tabela usa
   `criado_em`). Manter o contrato `Authenticatable`.
-- **Login por `login`** (não e-mail): ajustar o componente Livewire/Volt de login e as
-  regras de validação para `login` + senha.
-- **Desabilitar no MVP** (usuários criados por ADMIN — Fase 10):
-  - Registro público, verificação de e-mail e reset de senha → **remover/ocultar** rotas,
-    componentes e links do starter kit.
+- **Login por `login`** (não e-mail): ajustar a página/componente Livewire de login
+  (`resources/views`) e o *username* de autenticação do Fortify para `login` + senha.
+- **Desabilitar no MVP** via `config/fortify.php` (usuários criados por ADMIN — Fase 10):
+  remover/comentar `Features::registration()`, `Features::resetPasswords()` e
+  `Features::emailVerification()` do array `features`. Avaliar **2FA**
+  (`Features::twoFactorAuthentication()`, ligado por padrão): manter como reforço de
+  segurança ou desligar para enxugar o MVP — **decisão a registrar no PR**.
+- **Criação/validação de usuário:** ajustar `app/Actions/Fortify/CreateNewUser.php` e
+  `PasswordValidationRules.php` para o esquema `usuario` (`login`/`nome`/`perfil`,
+  sem e-mail obrigatório).
 - **`perfil`** (`OPERADOR`/`GESTOR`/`ADMIN`) presente no Model como base do RBAC; as
   **Policies/Gates** por perfil ficam para a **Fase 10**.
+- **Rate limiting de login:** o Fortify já expõe o limiter `login` no
+  `FortifyServiceProvider` — manter (alinha com a fase de segurança, §9.2 / Fase 11).
 - **Sanctum:** instalar e publicar config (`php artisan install:api` ou pacote +
-  `vendor:publish`). Nesta parte só a **sessão web** é exercida; tokens de API na Fase 10.
+  `vendor:publish`). Nesta parte só a **sessão web** (Fortify) é exercida; tokens de API
+  na Fase 10.
 - **Migration de `usuario` nesta parte:** a versão definitiva do §3.2.10 (com `perfil`
   CHECK, `criado_em`, etc.) pertence à **Fase 1**. Para o login do scaffold funcionar já
   na Parte 0, criar uma **migration mínima de `usuario`** (colunas `id`, `login` UNIQUE,
@@ -199,8 +215,9 @@ Esqueleto **padrão do Laravel 13** + Docker + CI + tooling + **login funcional*
 - [ ] Projeto Laravel 13 (`composer.json`, `artisan`, `app/`, `bootstrap/app.php`, `routes/`).
 - [ ] `Dockerfile`, `docker-compose.yml`, `.dockerignore`.
 - [ ] `.env.example` e configuração de conexão de teste (`.env.testing`/`phpunit.xml`).
-- [ ] Starter kit Livewire instalado (Livewire + Tailwind + Flux) e adaptado a `usuario`/`login`.
-- [ ] Sanctum instalado/configurado.
+- [ ] Starter kit Livewire instalado (Livewire 4 + Tailwind + Flux) e adaptado a `usuario`/`login`.
+- [ ] `config/fortify.php` ajustado (registro/reset/verificação desligados; 2FA conforme decisão) e `app/Actions/Fortify/*` adaptados.
+- [ ] Sanctum instalado/configurado (tokens de API só na Fase 10).
 - [ ] `tests/Pest.php`, `pint.json`, `phpstan.neon`.
 - [ ] Scripts `test`/`pint`/`stan` no `composer.json`.
 - [ ] Migration mínima de `usuario` + seeder de dev (admin/gestor/operador).
@@ -218,8 +235,9 @@ Esqueleto **padrão do Laravel 13** + Docker + CI + tooling + **login funcional*
    contra o banco de teste e passa.
 4. `vendor/bin/pint --test` e `vendor/bin/phpstan analyse` **sem erros**.
 5. **CI verde** no GitHub Actions (estilo + estática + testes, com Postgres service).
-6. `APP_LOCALE=pt_BR`; **registro público, verificação de e-mail e reset de senha
-   desabilitados** (rotas/telas ausentes).
+6. `APP_LOCALE=pt_BR`; em `config/fortify.php`, **registro público, verificação de e-mail
+   e reset de senha desabilitados** (`route:list` não exibe `/register`, `/forgot-password`,
+   `/email/verify`).
 
 ---
 
@@ -227,9 +245,9 @@ Esqueleto **padrão do Laravel 13** + Docker + CI + tooling + **login funcional*
 
 | Risco | Mitigação / ação |
 |---|---|
-| Flag exata do instalador Laravel 13 para o starter kit Livewire *built-in* | Consultar a doc oficial (§Referências); garantir auth built-in (não WorkOS). |
+| Instalador é interativo (sem flag `--livewire`) | Selecionar Livewire + built-in (não WorkOS) no prompt do `laravel new`. **Resolvido** (§4.1). |
 | **Flux UI** tem componentes free e **Pro** (pago) | Usar somente componentes free; Flux Pro está **fora do escopo**. |
-| Adaptação `users` → `usuario` deixa rotas/telas órfãs (registro/e-mail) | Varrer rotas e componentes do kit e remover o que não é MVP. |
+| Adaptação Fortify `users`/e-mail → `usuario`/`login` deixa rotas/telas órfãs | Desabilitar features em `config/fortify.php`; ajustar `app/Actions/Fortify/*`; varrer rotas/telas do kit e remover o que não é MVP (§4.4). |
 | Sanctum convivendo com a sessão do kit | Nesta parte, só sessão; validar que `install:api` não quebra a auth de sessão. Tokens de API → Fase 10. |
 | Extensões PHP 8.3 ausentes na imagem | Instalar `pdo_pgsql`, `pgsql`, `bcmath`, `intl`, `mbstring`, `zip` no `Dockerfile`. |
 | `decisions.md` legado (DDD), arquivado em `historic-plans/`, confunde implementadores/agentes | Tratar como obsoleto; **não** seguir; consolidar doc de decisões novo à parte. |
@@ -240,7 +258,8 @@ Esqueleto **padrão do Laravel 13** + Docker + CI + tooling + **login funcional*
 ## 9. Referências (Laravel 13)
 
 - Release notes: https://laravel.com/docs/13.x/releases
-- Starter kits (Livewire): https://laravel.com/docs/13.x/starter-kits
+- Starter kits (Livewire; auth, enable/disable features): https://laravel.com/docs/13.x/starter-kits
+- Laravel Fortify (auth do starter kit): https://laravel.com/docs/13.x/fortify
 - Repositório do starter kit Livewire: https://github.com/laravel/livewire-starter-kit
 - Anúncio (PHP 8.3, AI SDK): https://laravel-news.com/laravel-13-released
 

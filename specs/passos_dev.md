@@ -51,7 +51,7 @@
 **Entregáveis**
 - Projeto **Laravel 13 (PHP 8.3)** versionado, subindo via `docker compose up -d`.
 - PostgreSQL 15+ de desenvolvimento **e** de teste (`postgres_test`).
-- Starter kit **Livewire** (Livewire 3 + Tailwind + Flux UI) adaptado à tabela `usuario`;
+- Starter kit **Livewire** (Livewire 4 + Tailwind + Flux UI; auth via Fortify) adaptado à tabela `usuario`;
   Sanctum instalado; Pest configurado; ferramentas de estilo/estática.
 
 **Tarefas**
