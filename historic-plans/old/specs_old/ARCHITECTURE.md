@@ -1,10 +1,18 @@
 # Arquitetura — NeverVenture (MVP de gestão de risco de mercado)
 
-**Versão:** 2.0 · **Base:** `requisitos.md` v1.4 (fonte da verdade) · **Stack:** PHP 8.2+ / Laravel 11 · **Idioma do código de domínio:** português
+**Versão:** 3.0 · **Base:** `requisitos.md` v1.4 (fonte da verdade) · **Stack:** PHP 8.2+ / Laravel 11 · **Idioma do código de domínio:** português
 
 > Referência arquitetural para todo o desenvolvimento. Quando uma decisão se
 > apoia nos requisitos, a seção (§) ou a regra (RN-xxx) correspondente é citada.
 > Pontos não cobertos pelos requisitos aparecem marcados como **Premissa**.
+>
+> **v3.0 — re-arquitetura para MVC Laravel (fat model).** A v2.0 adotava DDD/
+> hexagonal com domínio em PHP puro separado do Eloquent. A v3.0 consolida a
+> **Alternativa A (fat model)** planejada em `spec_ddd_to_mvc.md`: o cálculo de
+> MtM vive nos **Models Eloquent**; os Services usam Eloquent direto (sem
+> Repositórios/Contratos de persistência); **Facades** expõem os Services. O
+> **ADR-003 foi revogado** (ver ADR-007). A migração é de **código de aplicação** —
+> o esquema do banco (§3.2/§3.3, migrations, constraints e índices) **não muda**.
 
 ---
 
@@ -37,7 +45,7 @@ a terceiros.
 | Framework | **Laravel 11** | Framework maduro, "baterias inclusas" (roteamento, validação, fila, scheduler, auth), grande comunidade e documentação em português. |
 | UI | **Blade + Livewire 3** (+ Alpine.js, Vite/Tailwind) | Telas server-rendered reativas sem SPA, alinhadas ao perfil de ferramenta interna (§6). |
 | Validação | **Form Requests / Validator** | Validação declarativa dos contratos (§5) e das RNs de cadastro (§7). |
-| ORM | **Eloquent** | Mapeia o §3; os modelos ficam na infraestrutura e são traduzidos para o domínio puro nos repositórios (§4.5). |
+| ORM | **Eloquent (fat model)** | Mapeia o §3 e **hospeda o cálculo de MtM** (`calcularMtm()`/`plRealizado()`/`replay()`); a subclasse certa é hidratada por `newFromBuilder` polimórfico (§4.5). Sem camada de tradução ORM⇄domínio. |
 | Migrations | **Migrations do Laravel** (Schema builder) | Versionamento de esquema reprodutível. |
 | Banco | **PostgreSQL 15+** | `NUMERIC` exato, índice único **parcial** (`uq_mov_abertura`), índices parciais (§3.3) e `JSONB` (`motor_execucao.falhas`). |
 | Agendador | **Laravel Task Scheduler** | Dispara `processarDia` do motor no fechamento (uma entrada de cron → `schedule:run`). |

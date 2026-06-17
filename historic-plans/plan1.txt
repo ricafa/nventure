@@ -1,0 +1,48 @@
+ Here is Claude's plan:                                                                                                                   ↑
+  ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+   Revisão da especificação — MVP risco de mercado                                                                                          ↑
+
+   Contexto                                                                                                                                 ↑
+
+   O usuário pediu a revisão técnica de especificacao_mvp_risco_mercado.md (935 linhas, versão 1.1). A análise encontrou inconsistências formais, contradições entre seções e dois problemas de lógica financeira. Decisões do usuário: aplicar as correções no documento (versão 1.2) e gerar um relatório separado documentando os achados; o NDF é cambial (USD/BRL) — a moeda será cadastrada como produto com cambio_b↑l = 1 para evitar dupla conversão.
+                                                                                                                                            ↑
+   Problemas encontrados
+                                                                                                                                            ↑
+   Críticos (lógica financeira)
+                                                                                                                                            ↑
+   1. Dupla conversão cambial no NDF (§4.3.2 + §4.4). O motor faz mtm_brl = mtm_moeda_orig * preco.cambio_brl para toda posição. Para NDF cambial com nocional em USD e taxa em BRL/USD, (taxa_mercado − taxa_contratada) × nocional já resulta em BRL — multiplicar pelo câmbio duplica a conversão.
+   Correção: documentar a convenção: a moeda (ex.: "Dólar USD/BRL") é cadastrada como produto com moeda_cotacao = 'BRL' e cambio_brl = 1; preco_fechamento é a própria taxa de câmbio. Adicionar nota em §4.3.2, na premissa §1.4 e em RN-015.                                     ↑
+   2. pl_acumulado é sempre igual a mtm_valor (§4.4, linha pl_acumulado = mtm_brl). A coluna em mtm_diario é redundante como está.
+   Correção: documentar explicitamente que no MVP o P&L acumulado coincide com o MtM (não há realização parcial nem liquidação diária) e que a coluna existe para evoluir na Fase 2 — ou seja, tornar a redundância intencional e declarada, em §3.2.8 e §4.4.
+   3. Contradição no prêmio das pernas (§3.2.6a vs descrição vs RN-004). O CHECK é premio_pago >= 0, mas a descrição da coluna diz "negativo permitido para pernas vendidas". A fórmula da Perna já trata pernas vendidas via sinal, então o prêmio deve ser sempre a magnitude (≥ 0).
+   Correção: manter o CHECK ≥ 0 e corrigir a descrição da coluna: "Prêmio unitário (magnitude, sempre ≥ 0); a direção é dada pelo campo lado da perna".
+
+   Inconsistências estruturais
+
+   4. Tabela de execuções do motor inexistente. A API expõe GET /motor/execucoes e retorna execucao_id (§5.2.4), e o princípio "auditoria por design" (§2.3) exige gravar quem disparou — mas o modelo de dados (§3) não tem tabela para isso.
+   Correção: adicionar tabela motor_execucao em §3.2 (id, data_calculo, disparado_por, iniciado_em, finalizado_em, total_posicoes, sucessos, falhas JSONB) e coluna opcional execucao_id FK em mtm_diario.
+   5. Diagrama UML §4.1 desatualizado. Ainda mostra Opcao com tipo, strike, premio_pago — atributos que a v1.1 moveu para Perna. A classe Perna não aparece.
+   Correção: redesenhar o diagrama com Opcao { nome_estrutura, pernas[] } e a classe Perna composta.
+ 6. Versão no cabeçalho. Linha 3 diz "Versão: 1.0", mas o changelog (§12) registra 1.1.
+   Correção: atualizar cabeçalho para 1.2 e adicionar linha no changelog com a data de hoje (2026-06-12).
+   7. Convenção quantidade/lado da posição mãe para OPCAO. A tabela posicao exige quantidade > 0 e lado, mas para opções esses dados vivem nas pernas (RN-004c). Não está dito o que preencher na mãe.
+   Correção: documentar a convenção (quantidade = 1; lado meramente informativo para OPCAO) em §3.2.3 e nas regras de negócio (nova RN-004e).
+
+nores
+
+ RN-006 mal redigida: "OTC com mesmo indexador deve referenciar um produto cadastrado" → reescrever: "o indexador da posição OTC deve corresponder a um produto cadastrado".
+   9. DELETE /precos/{id} sem restrição: preço referenciado por mtm_diario (FK) não pode ser removido. Adicionar regra (nova RN) e nota no dpoint.
+. PUT /posicoes/{id}/encerrar: semanticamente é uma ação, não substituição de recurso → trocar para POST.
+   11. variacao_dia mistura variação de preço e de câmbio (comparação em BRL entre dias com câmbios diferentes). Adicionar nota explicativa em §3.2.8 — comportamento aceito no MVP, decomposição fica para a Fase 2.
+   12. Colisão de colunas no SQL ilustrativo §4.5 (pf.preco_entrada vs pot.preco_entrada, múltiplos id). Adicionar aliases nas colunas ambíguas para o exemplo ficar executável.
+
+   Arquivos
+
+   - Modificar: c:\Fontes_Git\projetos\neverventure\especificacao_mvp_risco_mercado.md — aplicar itens 1–12, atualizar versão para 1.2 e changelog.
+   - Criar: c:\Fontes_Git\projetos\neverventure\revisao_especificacao_v1.1.md — relatório listando cada achado (problema, localização, severidade, correção aplicada).
+
+   Verificação
+
+   - Reler o documento corrigido conferindo consistência cruzada: cabeçalho ↔ changelog, modelo de dados ↔ APIs ↔ regras de negócio ↔ código ilustrativo.
+   - Conferir que a nova tabela motor_execucao cobre todos os campos retornados por GET /motor/execucoes.
+   - Conferir que os exemplos numéricos dos testes (§8.1) continuam corretos após os ajustes de texto (nenhuma fórmula muda).

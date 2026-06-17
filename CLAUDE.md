@@ -2,11 +2,38 @@
 
 Especificação e mocks do MVP de gestão de risco de mercado (MtM diário de derivativos sobre commodities).
 
-- `especificacao_mvp_risco_mercado.md` — especificação técnica vigente (fonte da verdade).
-- `revisao_especificacao_v1.1.md` — relatório da revisão técnica que gerou a v1.2.
+- `specs/requisitos.md` — especificação técnica vigente (fonte da verdade, v1.6).
+- `specs/passos_dev.md` — roteiro de fases de desenvolvimento (Fase 0..14).
+- `specs/spec_parte_0.md` — especificação da Parte 0 (Fundação, Laravel 13).
 - `mock_telas/` — mock interativo de telas (HTML + React via Babel Standalone).
 
+> O antigo `decisions.md` (decisões da tentativa DDD anterior) foi arquivado em
+> `historic-plans/` e está **desatualizado** — não usar como contexto.
+
+## Arquitetura (MVC nativo — *fat model*)
+
+A aplicação segue **MVC nativo do Laravel com *fat model*** (Eloquent ActiveRecord) —
+decisão de arquitetura "Alternativa A", registrada em `specs/requisitos.md` §2.2 e §4.
+Não há domínio em PHP puro separado nem repositórios/contratos de persistência.
+
+- **Models (`app/Models/`)** — Eloquent "gordo": concentram persistência **e** o cálculo
+  de MtM. `Posicao` é a base com a fábrica de hidratação polimórfica (`newFromBuilder`);
+  `Futuro`/`Ndf`/`Opcao`/`Otc` a estendem; `Perna`/`Movimentacao` são filhos. O cálculo
+  é mantido "puro" (sem query) e a aritmética reutilizável fica em `app/Models/Concerns/`.
+- **Services (`app/Services/`)** — regras de negócio/orquestração, usando Eloquent
+  direto (transações, `lockForUpdate`, `updateOrCreate` para idempotência). DTOs/read
+  models de saída em `app/Services/Dados/`.
+- **Facades (`app/Facades/`)** — fachada conveniente dos serviços (`Posicoes`, `Motor`,
+  etc.); controllers preferem injeção por construtor.
+- **Polimorfismo do motor** preservado sem `if`/`switch` por tipo: o motor itera Models
+  `Posicao` e chama `calcularMtm()`; o único `match` por instrumento vive no
+  `newFromBuilder`. Único ponto de extensão de ingestão que sobrevive como interface:
+  `FontePrecos` (`app/Support/Csv/ImportadorPrecosCsv`).
+
 ## Ambiente Docker
+
+**Stack:** PHP 8.3 · Laravel 13 · PostgreSQL 15+ · Livewire 3 + Tailwind + Flux UI · Sanctum · Pest.
+A fundação do projeto está especificada em `specs/spec_parte_0.md` (Parte 0).
 
 A aplicação e os bancos de dados são executados via Docker Compose para garantir a paridade de ambiente.
 
@@ -32,7 +59,7 @@ Qualquer comando do Laravel Artisan ou Composer pode ser executado através do c
   `DELETE /api/v1/posicoes/{id}`, `GET|POST /api/v1/posicoes/{id}/movimentacoes`.
 - Telas web (Livewire): `/posicoes` (listagem + detalhe + modal Movimentar) e
   `/posicoes/nova` (cadastro dinâmico por instrumento).
-- As regras de negócio vivem nos serviços (`app/Aplicacao/Posicoes/`); o cadastro de
+- As regras de negócio vivem nos serviços (`app/Services/`); o cadastro de
   FUTURO cria a movimentação `ABERTURA` automática na mesma transação (RN-020).
 
 ### Motor MtM (Parte 8)

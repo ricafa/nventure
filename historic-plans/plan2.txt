@@ -1,0 +1,58 @@
+# Revisão da especificação — MVP risco de mercado (v1.1 → v1.2)
+
+## Contexto
+
+O usuário pediu revisão técnica de `especificacao_mvp_risco_mercado.md` (935 linhas). A análise encontrou 12 problemas — 3 críticos de lógica financeira, 4 estruturais e 5 menores — **todos confirmados contra o arquivo real do repositório**. Decisões já tomadas pelo usuário: aplicar as correções gerando a versão 1.2 **e** criar um relatório separado com os achados; o NDF é cambial (USD/BRL) e a convenção adotada é cadastrar a moeda como `produto` com `cambio_brl = 1`, evitando dupla conversão.
+
+> **Nota de ambiente:** esta sessão roda no clone remoto. O arquivo está em `/home/user/repo/especificacao_mvp_risco_mercado.md` (branch `feat/especificacao-mvp-risco-mercado`), não no caminho Windows do rascunho original.
+
+## Correções a aplicar (todas em `especificacao_mvp_risco_mercado.md`)
+
+### Críticos — lógica financeira
+
+1. **Dupla conversão cambial no NDF.** `NDF.calcular_mtm` (linhas 318–328) retorna `(taxa_mercado − taxa_contratada) × nocional`, que para NDF USD/BRL já está em BRL; o motor (linha 416) ainda multiplica por `preco.cambio_brl`.
+   **Correção:** documentar a convenção em três pontos — (a) nota em §4.3.2 após a "Lógica": a moeda do NDF cambial (ex.: "Dólar USD/BRL") é cadastrada como `produto` com `moeda_cotacao = 'BRL'` e `cambio_brl = 1`, sendo `preco_fechamento` a própria taxa de câmbio, de modo que a multiplicação do motor é neutra; (b) nova premissa em §1.4; (c) complemento em RN-015 (linha 745).
+
+2. **`pl_acumulado` sempre igual a `mtm_valor`** (linha 423: `pl_acumulado = mtm_brl`).
+   **Correção:** tornar a redundância intencional e declarada — nota na descrição da coluna em §3.2.8 (linha 225) e comentário/nota em §4.4: no MVP não há realização parcial nem liquidação diária, então P&L acumulado coincide com o MtM; a coluna existe para evoluir na Fase 2.
+
+3. **Contradição no prêmio das pernas.** CHECK `premio_pago >= 0` (linha 195) vs descrição "negativo permitido para pernas vendidas". A fórmula da `Perna` (linha 353) já trata a direção via `sinal`.
+   **Correção:** manter o CHECK e corrigir a descrição: "Prêmio unitário (magnitude, sempre ≥ 0); a direção é dada pelo campo `lado` da perna". Conferir RN-004 (linha 724) — já está coerente ("maior ou igual a zero"), não muda.
+
+### Estruturais
+
+4. **Tabela de execuções do motor inexistente.** A API expõe `GET /motor/execucoes` e retorna `execucao_id` (§5.2.4, linhas 609–633) e §2.3 exige auditoria de quem disparou, mas §3 não tem tabela.
+   **Correção:** adicionar `motor_execucao` como §3.2.9 (renumerando `usuario` para §3.2.10): `id SERIAL PK`, `data_calculo DATE NOT NULL`, `disparado_por VARCHAR(60) NOT NULL`, `iniciado_em TIMESTAMP NOT NULL DEFAULT NOW()`, `finalizado_em TIMESTAMP NULL`, `total_posicoes INTEGER`, `sucessos INTEGER`, `falhas JSONB`. Adicionar coluna opcional `execucao_id INTEGER NULL FK → motor_execucao.id` em `mtm_diario` (§3.2.8) e a relação no diagrama lógico §3.1. Nota curta em §5.2.4 referenciando a tabela.
+
+5. **Diagrama UML §4.1 desatualizado** (linhas 258–271): `Opcao` ainda mostra `tipo, strike, premio_pago`, movidos para `Perna` na v1.1; a classe `Perna` não aparece.
+   **Correção:** redesenhar o bloco ASCII com `Opcao { nome_estrutura, pernas[] }` e `Perna { tipo_opcao, estilo, strike, premio_pago, quantidade, lado }` em composição (`Opcao ◆── Perna`).
+
+6. **Versão no cabeçalho** (linha 3: "Versão: 1.0" vs changelog com 1.1).
+   **Correção:** cabeçalho → "Versão: 1.2"; nova linha no changelog §12: `| 1.2 | 2026-06-12 | Equipe de produto | Revisão técnica: convenção cambial do NDF, tabela motor_execucao, UML atualizado, correções de consistência |`.
+
+7. **Convenção `quantidade`/`lado` da posição mãe para OPCAO.** `posicao` exige `quantidade > 0` e `lado`, mas para opções os dados operacionais vivem nas pernas (RN-004c). Os payloads de exemplo já usam `quantidade: 1` — formalizar isso.
+   **Correção:** nota em §3.2.3 e nova **RN-004e**: para `instrumento = 'OPCAO'`, convenciona-se `quantidade = 1` na mãe e `lado` meramente informativo (direção predominante da estratégia); o cálculo usa exclusivamente quantidade e lado das pernas.
+
+### Menores
+
+8. **RN-006 mal redigida** (linha 730) → "o `indexador` da posição OTC deve corresponder a um produto cadastrado no sistema".
+9. **`DELETE /precos/{id}` sem restrição** (linha 513): preço referenciado por `mtm_diario.preco_ref_id` não pode ser removido. Nova **RN-010a** em §7.2 + nota no endpoint ("retorna 409 se o preço já foi usado em cálculo").
+10. **`PUT /posicoes/{id}/encerrar`** (linha 533) é ação, não substituição de recurso → trocar para `POST /posicoes/{id}/encerrar`.
+11. **`variacao_dia` mistura variação de preço e de câmbio** (comparação em BRL entre dias com câmbios diferentes). Nota explicativa na descrição da coluna em §3.2.8 (linha 224): comportamento aceito no MVP; decomposição preço × câmbio fica para a Fase 2.
+12. **Colisão de colunas no SQL ilustrativo §4.5** (linha 457: `SELECT p.*, pf.*, ...` — `pf.preco_entrada` vs `pot.preco_entrada`, múltiplos `id`/`posicao_id`). Reescrever o SELECT com aliases explícitos nas colunas ambíguas (ex.: `pf.preco_entrada AS fut_preco_entrada`, `pot.preco_entrada AS otc_preco_entrada`) para o exemplo ser executável.
+
+## Arquivos
+
+- **Modificar:** `/home/user/repo/especificacao_mvp_risco_mercado.md` — itens 1–12.
+- **Criar:** `/home/user/repo/revisao_especificacao_v1.1.md` — relatório com um bloco por achado: problema, localização (seção/linha), severidade (crítico/estrutural/menor), correção aplicada.
+
+Ordem sugerida: aplicar itens 1–12 no documento (itens independentes entre si, exceto o item 4 que toca §3.1, §3.2.8 e §5.2.4 juntos), depois item 6 (versão/changelog) por último, e por fim escrever o relatório a partir do diff.
+
+## Verificação
+
+- Releitura cruzada do documento corrigido: cabeçalho ↔ changelog; diagrama lógico §3.1 ↔ tabelas §3.2 (inclui `motor_execucao` e a FK em `mtm_diario`); UML §4.1 ↔ classes §4.2/§4.3; APIs §5 ↔ tabelas e regras de negócio §7.
+- Conferir que `motor_execucao` cobre todos os campos da resposta de `GET /motor/execucoes` (§5.2.4): `execucao_id`, `data_calculo`, `posicoes_processadas`, `sucessos`, `falhas`.
+- Conferir que os exemplos numéricos dos testes §8.1 permanecem corretos — nenhuma fórmula muda, apenas texto/convenções.
+- Renumeração: garantir que `usuario` virou §3.2.10 e que nenhuma referência cruzada a "§3.2.9" ficou apontando para a tabela errada (busca por "3.2.9" no documento).
+
+Ao final (após aprovação): commit na branch `feat/especificacao-mvp-risco-mercado`, push e PR.

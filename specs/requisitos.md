@@ -1,6 +1,6 @@
 # Especificação técnica — MVP de gestão de risco de mercado para commodities
 
-**Versão:** 1.4
+**Versão:** 1.6
 **Escopo:** Mark-to-market diário, posição consolidada e P&L para instrumentos derivativos sobre commodities.
 
 ---
@@ -67,9 +67,9 @@ O sistema é organizado em quatro módulos lógicos:
 
 A stack abaixo é a adotada no MVP. O princípio do polimorfismo no motor (§2.3) é preservado independentemente do framework.
 
-- **Backend:** PHP 8.2+ com Laravel 11.
+- **Backend:** PHP 8.3+ com Laravel 13 (suporta PHP 8.3–8.5).
 - **Banco de dados:** PostgreSQL 15+ (necessário para o índice único parcial de `posicao_movimentacao`, tipos `NUMERIC` exatos e `JSONB`).
-- **ORM:** Eloquent. As classes de domínio (§4) permanecem como objetos PHP puros; os modelos Eloquent ficam na infraestrutura e são traduzidos para o domínio nos repositórios (§4.5).
+- **ORM:** Eloquent, em arquitetura **MVC nativa com *fat model*** (ActiveRecord). O cálculo de MtM vive nos próprios Models Eloquent (§4); não há camada de domínio em PHP puro separada nem repositórios/contratos de persistência — os serviços de aplicação usam Eloquent diretamente. O polimorfismo do motor é preservado por uma fábrica de hidratação no próprio ORM (`newFromBuilder`, §4.5). Decisão de arquitetura: Alternativa A — *fat model* (cálculo nos Models, sem domínio puro separado), detalhada em §4 e §4.5.
 - **Migrations:** Migrations do Laravel (Schema builder).
 - **Frontend:** Blade + Livewire 3 (com Alpine.js para interações leves; Vite para empacotar CSS/JS e Tailwind). Telas server-rendered, sem SPA.
 - **Agendador:** Laravel Task Scheduler (uma entrada de cron chamando `php artisan schedule:run`) para disparar o processamento diário do motor.
@@ -296,7 +296,20 @@ CREATE INDEX idx_mov_posicao_data ON posicao_movimentacao(posicao_id, data_movim
 
 ---
 
-## 4. Hierarquia de classes do domínio
+## 4. Hierarquia de classes (Models Eloquent — *fat model*)
+
+> **Arquitetura MVC nativa / *fat model*:** as classes abaixo são **Models Eloquent**
+> (`app/Models/`) que concentram tanto a persistência quanto o cálculo de MtM — não há
+> domínio em PHP puro separado. O código a seguir mostra a **lógica de cálculo** (as
+> fórmulas, idênticas às validadas); na implementação esses métodos vivem nos Models
+> (`Posicao` base + subclasses `Futuro`/`Ndf`/`Opcao`/`Otc`, `Perna`, `Movimentacao`).
+> **Salvaguarda de testabilidade e pureza:** os métodos de cálculo (`calcularMtm`,
+> `plRealizado`, `sinal`, `precoMedio`, `quantidadeAtual`, `replay`) operam **somente**
+> sobre atributos/relações já carregados (eager loading garantido pelo serviço) — não
+> montam query nem tocam no banco; a aritmética é extraível para *traits* puros em
+> `app/Models/Concerns/`. O polimorfismo do motor é preservado pela fábrica de
+> hidratação `newFromBuilder` (§4.5), **sem** `if/switch` por tipo no motor
+> (Alternativa A — *fat model*).
 
 ### 4.1 Diagrama UML conceitual
 
@@ -334,14 +347,19 @@ CREATE INDEX idx_mov_posicao_data ON posicao_movimentacao(posicao_id, data_movim
    + quantidade, preco
 ```
 
-### 4.2 Classe abstrata `Posicao`
+### 4.2 Model base `Posicao`
+
+> No *fat model*, `Posicao` é o Model Eloquent base (`extends Illuminate\Database\Eloquent\Model`);
+> as subclasses estendem-no e a hidratação polimórfica fica no `newFromBuilder` (§4.5).
+> O trecho abaixo destaca o **contrato de cálculo** (atributos vêm de colunas/relações
+> carregadas); as fórmulas são idênticas às já validadas.
 
 ```php
 <?php
 
-namespace App\Dominio\Posicoes;
+namespace App\Models;
 
-abstract class Posicao
+abstract class Posicao // Model Eloquent base (fat model); ver nota acima
 {
     public function __construct(
         public readonly int $id,
@@ -575,47 +593,67 @@ final class OTC extends Posicao
 
 ### 4.4 Motor MtM
 
+> No *fat model* o `MotorMtm` vive em `app/Services/MotorMtm.php` e itera **Models
+> Eloquent** diretamente (sem repositórios/contratos — DM-2). A query traz as posições
+> abertas com eager loading; `newFromBuilder` (§4.5) já devolve a subclasse correta, de
+> modo que `calcularMtm()` é polimórfico. A idempotência (RN-013) é o
+> `MtmDiario::updateOrCreate(...)`. A orquestração/auditoria (`motor_execucao`) e o
+> upsert vivem no `ServicoMotor`; o trecho abaixo destaca o laço de cálculo.
+
 ```php
+namespace App\Services;
+
+use App\Models\{Posicao, PrecoReferencia, MtmDiario};
+
 class MotorMtm
 {
-    public function __construct(
-        private readonly RepositorioPosicoes $repoPosicoes,
-        private readonly RepositorioPrecos $repoPrecos,
-        private readonly RepositorioMtm $repoMtm,
-    ) {}
-
     public function processarDia(\DateTimeImmutable $dataCalculo): ResultadoProcessamento
     {
         $resultado = new ResultadoProcessamento($dataCalculo);
 
-        foreach ($this->repoPosicoes->buscarAbertas() as $posicao) {
+        // Eager loading evita N+1; newFromBuilder (§4.5) hidrata a subclasse correta.
+        $posicoes = Posicao::query()
+            ->with(['futuro.movimentacoes', 'ndf', 'opcao.pernas', 'otc'])
+            ->where('status', 'ABERTA')
+            ->get();
+
+        foreach ($posicoes as $posicao) {
             try {
-                $preco = $this->repoPrecos->buscar($posicao->produtoId, $dataCalculo);
+                $preco = PrecoReferencia::query()
+                    ->where('produto_id', $posicao->produto_id)
+                    ->where('data_preco', $dataCalculo->format('Y-m-d'))
+                    ->first();
                 if ($preco === null) {
                     $resultado->falhas[] = [$posicao->id, 'Preço não cadastrado para a data'];
                     continue;
                 }
 
-                $mtmMoedaOrig = $posicao->calcularMtm($preco->precoFechamento);
-                $mtmBrl = $mtmMoedaOrig * $preco->cambioBrl;
+                $mtmMoedaOrig = $posicao->calcularMtm((float) $preco->preco_fechamento);
+                $mtmBrl = $mtmMoedaOrig * (float) $preco->cambio_brl;
 
-                $mtmOntem = $this->repoMtm->buscarUltimoAnterior($posicao->id, $dataCalculo);
-                $mtmOntemValor = $mtmOntem?->mtmValor ?? 0.0;
+                $mtmOntem = MtmDiario::query()
+                    ->where('posicao_id', $posicao->id)
+                    ->where('data_calculo', '<', $dataCalculo->format('Y-m-d'))
+                    ->orderByDesc('data_calculo')
+                    ->first();
+                $mtmOntemValor = (float) ($mtmOntem?->mtm_valor ?? 0.0);
                 $variacao = $mtmBrl - $mtmOntemValor;
 
                 // P&L acumulado = MtM (não realizado) + P&L realizado acumulado das
                 // reduções (RN-023), convertido pelo câmbio do dia. Sem movimentações,
                 // plRealizado() = 0 e o valor coincide com $mtmBrl (ver §3.2.8).
-                $plAcumulado = $mtmBrl + $posicao->plRealizado() * $preco->cambioBrl;
+                $plAcumulado = $mtmBrl + $posicao->plRealizado() * (float) $preco->cambio_brl;
 
-                $this->repoMtm->upsert(
-                    posicaoId: $posicao->id,
-                    precoRefId: $preco->id,
-                    dataCalculo: $dataCalculo,
-                    precoMercado: $preco->precoFechamento,
-                    mtmValor: $mtmBrl,
-                    variacaoDia: $variacao,
-                    plAcumulado: $plAcumulado,
+                // Idempotência (RN-013): UPSERT por (posicao_id, data_calculo).
+                MtmDiario::updateOrCreate(
+                    ['posicao_id' => $posicao->id, 'data_calculo' => $dataCalculo->format('Y-m-d')],
+                    [
+                        'preco_ref_id'  => $preco->id,
+                        'preco_mercado' => $preco->preco_fechamento,
+                        'mtm_valor'     => $mtmBrl,
+                        'variacao_dia'  => $variacao,
+                        'pl_acumulado'  => $plAcumulado,
+                    ],
                 );
                 $resultado->sucessos[] = $posicao->id;
             } catch (\Throwable $e) {
@@ -628,82 +666,54 @@ class MotorMtm
 }
 ```
 
-**Observe:** o motor não tem nenhum `if` por tipo de instrumento. Para adicionar um novo tipo (swap, asiática) basta criar uma classe que estende `Posicao` e implementa `calcularMtm`. O motor não muda.
+**Observe:** o motor não tem nenhum `if` por tipo de instrumento. Para adicionar um novo tipo (swap, asiática) basta criar um Model que estende `Posicao`, implementa `calcularMtm` e ganha um `case` no `match` do `newFromBuilder` (§4.5). O motor não muda.
 
 > **Nota sobre `pl_acumulado`:** o P&L acumulado soma ao MtM (P&L não realizado) o P&L realizado acumulado das reduções de futuros (`$posicao->plRealizado()`, RN-023), convertido pelo câmbio do dia. Para instrumentos sem movimentações o realizado é 0 e `pl_acumulado` coincide com `$mtmBrl`. O motor continua sem nenhum `if` por tipo: `plRealizado()` é um método polimórfico definido na classe base (§4.2) e sobrescrito por `Futuro` (§4.3.1).
 
 > **Nota sobre conversão cambial:** a linha `$mtmBrl = $mtmMoedaOrig * $preco->cambioBrl` pressupõe que `calcularMtm` retorna valor na moeda de cotação do produto. Para NDF cambial, a convenção de cadastro com `cambio_brl = 1` (§4.3.2) mantém essa linha correta sem caso especial.
 
-### 4.5 Repositório com factory
+### 4.5 Fábrica de hidratação polimórfica (`newFromBuilder`)
+
+No *fat model* não há repositório nem tradução ORM⇄domínio: o objeto que o motor usa
+**é** o Model. Para que `Posicao::query()->get()` devolva a **subclasse certa** (e
+`calcularMtm()` seja polimórfico sem `if` no motor), o Model base sobrescreve a
+hidratação por `instrumento` — réplica do antigo `match` da factory, agora **dentro**
+do Eloquent:
 
 ```php
-namespace App\Infraestrutura\Repositorios;
+namespace App\Models;
 
-use App\Dominio\Posicoes\{Posicao, Futuro, NDF, Opcao, OTC, Perna, Movimentacao};
-use App\Infraestrutura\Models\PosicaoModel;
-
-class RepositorioPosicoesEloquent implements RepositorioPosicoes
+class Posicao extends \Illuminate\Database\Eloquent\Model
 {
-    /** @return Posicao[] */
-    public function buscarAbertas(): array
+    protected $table = 'posicao';
+
+    // Único ponto onde o tipo importa (factory). Depois disso, polimorfismo puro.
+    public function newFromBuilder($attributes = [], $connection = null)
     {
-        // Eager loading evita N+1 ao hidratar pernas e movimentações.
-        $linhas = PosicaoModel::query()
-            ->with(['futuro.movimentacoes', 'ndf', 'opcao.pernas', 'otc'])
-            ->where('status', 'ABERTA')
-            ->get();
-
-        return $linhas->map(fn (PosicaoModel $m) => $this->hidratar($m))->all();
-    }
-
-    private function hidratar(PosicaoModel $m): Posicao
-    {
-        $comuns = [
-            'id'             => $m->id,
-            'produtoId'      => $m->produto_id,
-            'lado'           => $m->lado,
-            'quantidade'     => (float) $m->quantidade,
-            'dataEntrada'    => new \DateTimeImmutable($m->data_entrada),
-            'dataVencimento' => new \DateTimeImmutable($m->data_vencimento),
-            'status'         => $m->status,
-        ];
-
-        // Único ponto onde o tipo importa (factory). Depois disso, polimorfismo puro.
-        return match ($m->instrumento) {
-            'FUTURO' => new Futuro(
-                ...$comuns,
-                precoEntrada: (float) $m->futuro->preco_entrada,
-                codigoContrato: $m->futuro->codigo_contrato,
-                movimentacoes: $m->futuro->movimentacoes->map(fn ($mv) => new Movimentacao(
-                    $mv->tipo,
-                    new \DateTimeImmutable($mv->data_movimentacao),
-                    (float) $mv->quantidade,
-                    (float) $mv->preco,
-                ))->all(),
-            ),
-            'NDF' => new NDF(
-                ...$comuns,
-                taxaContratada: (float) $m->ndf->taxa_contratada,
-                valorNocional: (float) $m->ndf->valor_nocional,
-            ),
-            'OPCAO' => new Opcao(
-                ...$comuns,
-                nomeEstrutura: $m->opcao->nome_estrutura,
-                pernas: $m->opcao->pernas->map(fn ($p) => new Perna(
-                    $p->tipo_opcao, $p->estilo, (float) $p->strike,
-                    (float) $p->premio_pago, (float) $p->quantidade, $p->lado,
-                ))->all(),
-            ),
-            'OTC' => new OTC(
-                ...$comuns,
-                precoEntrada: (float) $m->otc->preco_entrada,
-                indexador: $m->otc->indexador,
-                premioOtc: (float) $m->otc->premio_otc,
-            ),
+        $classe = match ($attributes->instrumento ?? null) {
+            'FUTURO' => Futuro::class,
+            'NDF'    => Ndf::class,
+            'OPCAO'  => Opcao::class,
+            'OTC'    => Otc::class,
+            default  => static::class,
         };
+
+        $model = (new $classe)->newInstance([], true);
+        $model->setRawAttributes((array) $attributes, true);
+        $model->setConnection($connection ?: $this->getConnectionName());
+
+        return $model;
     }
 }
 ```
+
+- Cada subclasse (`Futuro extends Posicao`, etc.) aponta `$table = 'posicao'` e acessa
+  a tabela-filha por relação (`hasOne` — `futuro()`, `ndf()`, `opcao()`, `otc()`) com
+  eager loading; `Movimentacao` e `Perna` são Models filhos. Os métodos de cálculo do
+  §4.3 (`calcularMtm`, `precoMedio`, `replay`, …) vivem nessas subclasses e operam só
+  sobre relações já carregadas (§4, nota de salvaguarda).
+- **Aberto/fechado preservado:** novo instrumento = novo Model `extends Posicao` + um
+  `case` neste `match`. Motor e serviços não mudam.
 
 O único ponto onde o tipo importa é o `match` da hidratação. Depois disso, polimorfismo puro.
 
@@ -1066,12 +1076,14 @@ Cobertura prioritária:
 - Idempotência do motor: rodar duas vezes para a mesma data não duplica registros.
 - Preço médio e P&L realizado de `Futuro` com movimentações: média ponderada após aumento, redução que mantém o preço médio e gera realizado, redução total que zera e encerra, redução excedente rejeitada, e MtM calculado sobre o preço médio.
 
-**Exemplos:**
+**Exemplos:** (no *fat model*, o cálculo é testado **sem banco** — instanciando os
+Models via `make()`/`setRawAttributes` sem `save`, ou exercitando os *traits* puros de
+`app/Models/Concerns/`; as fórmulas e os valores esperados abaixo permanecem idênticos)
 
 ```php
 <?php
 
-use App\Dominio\Posicoes\{Futuro, Opcao, Perna, Movimentacao};
+use App\Models\{Futuro, Opcao, Perna, Movimentacao};
 
 it('futuro comprado com alta gera mtm positivo', function () {
     $futuro = new Futuro(
@@ -1188,8 +1200,12 @@ Roteiros para validação com a mesa de risco:
 
 ### 8.4 Metas de cobertura
 
-- Camada de domínio (classes de posição e motor): **≥ 90%** de cobertura.
-- Camada de aplicação (serviços, endpoints): **≥ 70%**.
+- Cálculo dos Models (subclasses de posição, pernas e o laço do motor): **≥ 90%** de
+  cobertura — testável sem banco (Models via `make()`/`setRawAttributes`, ou *traits*
+  puros de `app/Models/Concerns/`).
+- Camada de aplicação (serviços com persistência, endpoints): **≥ 70%**. Sem os *fakes*
+  de contrato (removidos com os repositórios — DM-2), a orquestração com banco é coberta
+  por testes de feature com `RefreshDatabase` (SQLite in-memory / PostgreSQL).
 - Total do projeto: **≥ 75%**.
 
 ---
@@ -1293,6 +1309,8 @@ Roteiros para validação com a mesa de risco:
 | 1.2 | 2026-06-12 | Equipe de produto | Revisão técnica: convenção cambial do NDF (moeda como produto com `cambio_brl = 1`), tabela `motor_execucao`, UML atualizado com `Perna`, `pl_acumulado` documentado, correções de consistência (prêmio de perna, RN-006, RN-010a, RN-004e, POST encerrar, aliases no SQL) |
 | 1.3 | 2026-06-13 | Equipe de produto | Movimentações de posição FUTURO: tabela `posicao_movimentacao` (com `ABERTURA` automática no cadastro), preço médio ponderado derivado das movimentações (`preco_entrada` preservado como preço da abertura), MtM calculado sobre o preço médio, P&L realizado nas reduções e `pl_acumulado = mtm_valor + realizado` (RN-020 a RN-025; RN-001 e RN-018 ajustadas; endpoints `GET/POST /posicoes/{id}/movimentacoes`; classe `Movimentacao` e properties em `Futuro`; novos testes §8; telas §6.1/§6.2/§6.4; glossário §11) |
 | 1.4 | 2026-06-13 | Equipe de produto | Migração de stack para **Laravel**: §2.2 atualizado (PHP 8.2+/Laravel 11/Eloquent/Migrations/Blade+Livewire/Sanctum; PostgreSQL mantido); código de referência do §4 (classes de domínio, motor e repositório) convertido de Python para PHP preservando as fórmulas; exemplos de teste do §8.1 convertidos para Pest; §9.2 (autenticação) ajustado para Sanctum. Regras de negócio (§7), modelo de dados (§3) e contratos da API (§5) permanecem inalterados |
+| 1.5 | 2026-06-17 | Equipe de produto | Re-arquitetura **DDD em camadas → MVC nativo com *fat model*** (Alternativa A): §2.2 (ORM) e §4 (hierarquia de classes) passam de domínio em PHP puro + repositórios para **Models Eloquent gordos** com cálculo de MtM embutido; o motor (§4.4) itera Models direto e usa `MtmDiario::updateOrCreate` (sem contratos/repositórios); o `match` da factory (§4.5) vira `newFromBuilder`, preservando o polimorfismo; salvaguardas de cálculo puro/*traits* e namespaces (`App\Models\`) ajustados em §4 e §8.1/§8.4. Regras de negócio (§7), modelo de dados (§3) e contratos da API (§5) permanecem inalterados |
+| 1.6 | 2026-06-17 | Equipe de produto | Atualização de stack para **Laravel 13 / PHP 8.3+** (§2.2; suportado 8.3–8.5). Acompanha a especificação da fundação em `specs/spec_parte_0.md` (starter kit Livewire + Flux UI adaptado a `usuario`, Docker, CI GitHub Actions). Regras de negócio (§7), modelo de dados (§3) e contratos da API (§5) permanecem inalterados |
 
 ---
 
