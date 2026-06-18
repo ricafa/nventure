@@ -25,7 +25,7 @@
 | **D-005** | Banco de teste | Serviço Postgres separado (`postgres_test`, `tmpfs` — efêmero/rápido); testes apontam para ele. |
 | **D-006** | Análise estática | PHPStan/Larastan **nível 8** sobre `app/`, **excluindo** `Http/`, `Livewire/`, `Providers/`. |
 | **D-007** | Locale | `APP_LOCALE=pt_BR` e `APP_FAKER_LOCALE=pt_BR` (linguagem ubíqua em português). |
-| **D-008** | Usuários | Tabela `usuario` (§3.2.10) substitui `users`; login por **`login`** (não e-mail); `senha_hash` com cast `hashed`. |
+| **D-008** | Usuários | Tabela `usuario` (§3.2.10) substitui `usuario`; login por **`login`** (não e-mail); `senha_hash` com cast `hashed`. |
 
 > As decisões D-005/006/007/008 reproduzem, **em conteúdo**, escolhas válidas de uma
 > tentativa anterior (o `decisions.md` legado registrava equivalentes como
@@ -145,7 +145,7 @@ Criar três artefatos:
 
 ### 4.4 Adaptar a autenticação à tabela `usuario`
 
-O starter kit usa **Laravel Fortify** e assume `users`/e-mail/registro. Adaptar ao
+O starter kit usa **Laravel Fortify** e assume `usuario`/e-mail/registro. Adaptar ao
 §3.2.10 e §9.2:
 
 - **Model de usuário** → `$table = 'usuario'`; `getAuthPassword()` retorna `senha_hash`;
@@ -247,7 +247,7 @@ Esqueleto **padrão do Laravel 13** + Docker + CI + tooling + **login funcional*
 |---|---|
 | Instalador é interativo (sem flag `--livewire`) | Selecionar Livewire + built-in (não WorkOS) no prompt do `laravel new`. **Resolvido** (§4.1). |
 | **Flux UI** tem componentes free e **Pro** (pago) | Usar somente componentes free; Flux Pro está **fora do escopo**. |
-| Adaptação Fortify `users`/e-mail → `usuario`/`login` deixa rotas/telas órfãs | Desabilitar features em `config/fortify.php`; ajustar `app/Actions/Fortify/*`; varrer rotas/telas do kit e remover o que não é MVP (§4.4). |
+| Adaptação Fortify `usuario`/e-mail → `usuario`/`login` deixa rotas/telas órfãs | Desabilitar features em `config/fortify.php`; ajustar `app/Actions/Fortify/*`; varrer rotas/telas do kit e remover o que não é MVP (§4.4). |
 | Sanctum convivendo com a sessão do kit | Nesta parte, só sessão; validar que `install:api` não quebra a auth de sessão. Tokens de API → Fase 10. |
 | Extensões PHP 8.3 ausentes na imagem | Instalar `pdo_pgsql`, `pgsql`, `bcmath`, `intl`, `mbstring`, `zip` no `Dockerfile`. |
 | `decisions.md` legado (DDD), arquivado em `historic-plans/`, confunde implementadores/agentes | Tratar como obsoleto; **não** seguir; consolidar doc de decisões novo à parte. |

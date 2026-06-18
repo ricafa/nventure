@@ -1,0 +1,55 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nventure-app
+    container_name: nventure-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    networks:
+      - nventure-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: nventure-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-nventure}
+      POSTGRES_USER: ${DB_USERNAME:-sail}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+    volumes:
+      - nventure-postgres:/var/lib/postgresql/data
+    networks:
+      - nventure-network
+
+  postgres_test:
+    image: postgres:15-alpine
+    container_name: nventure-postgres-test
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-nventure}_test
+      POSTGRES_USER: ${DB_USERNAME:-sail}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - nventure-network
+
+networks:
+  nventure-network:
+    driver: bridge
+
+volumes:
+  nventure-postgres:
+    driver: local
