@@ -35,10 +35,10 @@ repetidas aqui — este arquivo cobre o que foi decidido no código.
 
 ## Parte 2 — Banco de dados
 
-### D-201 · Tabela `usuario` substitui a `users` padrão do Laravel
+### D-201 · Tabela `usuario` substitui a `usuario` padrão do Laravel
 - **Contexto.** O §3.2.10 define `usuario` (singular, colunas em português:
-  `login`, `senha_hash`, `perfil`). O Laravel assume `users`/`email`/`password`.
-- **Decisão.** A migration `create_users_table` foi reescrita para criar `usuario`
+  `login`, `senha_hash`, `perfil`). O Laravel assume `usuario`/`email`/`password`.
+- **Decisão.** A migration `create_usuario_table` foi reescrita para criar `usuario`
   (+ `sessions`). O Model `User` mapeia `$table = 'usuario'`, sobrescreve
   `getAuthPassword()` → `senha_hash` e desativa `timestamps` (a tabela usa
   `criado_em`). `password_reset_tokens` foi **removida** (fora do escopo MVP).
