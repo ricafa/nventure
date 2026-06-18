@@ -1,0 +1,66 @@
+services:
+  app:
+    build:
+      context: .
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      - composer_cache:/tmp/composer-cache
+      - node_modules:/var/www/html/node_modules
+    environment:
+      COMPOSER_CACHE_DIR: /tmp/composer-cache
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      APP_LOCALE: pt_BR
+      APP_FAKER_LOCALE: pt_BR
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: nventure
+      DB_USERNAME: nventure
+      DB_PASSWORD: nventure
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres_test:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: nventure
+      POSTGRES_USER: nventure
+      POSTGRES_PASSWORD: nventure
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nventure -d nventure"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres_test:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: nventure_test
+      POSTGRES_USER: nventure
+      POSTGRES_PASSWORD: nventure
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nventure -d nventure_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  composer_cache:
+  node_modules:
+  postgres_data:

@@ -1,58 +1,134 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# NeverVenture - Gestão de Risco de Mercado para Commodities
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+NeverVenture é um MVP (Minimum Viable Product) de gestão de risco de mercado para commodities, focado no ciclo pós-trade: cadastro/importação de posições, lançamento/importação de preços de referência, processamento diário de MtM (Mark-to-Market), histórico de P&L e relatórios consolidados.
 
-## About Laravel
+## Tecnologias Utilizadas
+- **Core**: PHP 8.3 + Laravel 13
+- **Frontend**: Livewire 4 + Flux UI + Tailwind CSS
+- **Banco de Dados**: PostgreSQL 15+ (Dev e Testes)
+- **Qualidade/Testes**: Pest, Pint, PHPStan/Larastan
+- **Infraestrutura**: Docker & Docker Compose
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🚀 Passo a Passo para Iniciar o Projeto
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Siga os passos abaixo para subir a aplicação em seu ambiente local:
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
+### Passo 1: Clonar o Repositório e Configurar as Variáveis de Ambiente
+Certifique-se de que possui um arquivo `.env` configurado. Se não possuir, copie o modelo:
 ```bash
-composer require laravel/boost --dev
+cp .env.example .env
+```
+*(Nota: O arquivo `.env` já vem pré-configurado para conectar ao banco PostgreSQL do Docker).*
 
-php artisan boost:install
+### Passo 2: Subir a Stack Docker
+Inicie os containers da aplicação e dos bancos de dados (desenvolvimento e teste):
+```bash
+docker compose up -d
+```
+Isso iniciará três serviços:
+1. `app` (servidor web exposto em `http://localhost:8000`)
+2. `postgres` (banco de dados PostgreSQL de desenvolvimento)
+3. `postgres_test` (banco de dados PostgreSQL dedicado a testes)
+
+### Passo 3: Executar Migrations e Seeders
+Com os containers ativos, execute as migrations do banco de dados e os dados de demonstração (seed):
+```bash
+docker compose exec app php artisan migrate --seed
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### Passo 4: Acessar a Aplicação
+Acesse a aplicação no seu navegador em:
+👉 **[http://localhost:8000](http://localhost:8000)**
 
-## Contributing
+Para efetuar o login, utilize uma das credenciais de demonstração (senha padrão: `password`):
+- **Administrador**: login `admin` / senha `password`
+- **Gestor**: login `gestor` / senha `password`
+- **Operador**: login `operador` / senha `password`
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## 🛠️ Comandos Úteis do Docker
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+- **Subir os containers (modo background)**:
+  ```bash
+  docker compose up -d
+  ```
+- **Derrubar os containers**:
+  ```bash
+  docker compose down
+  ```
+- **Reconstruir as imagens Docker**:
+  ```bash
+  docker compose build
+  ```
+- **Visualizar os logs do container da aplicação**:
+  ```bash
+  docker compose logs -f app
+  ```
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## 🧪 Comandos de Desenvolvimento e Qualidade
 
-## License
+Todos os comandos de desenvolvimento devem ser executados através do container `app` ou localmente (se possuir o ambiente PHP configurado no host).
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 1. Testes Automatizados (Pest)
+A suite de testes utiliza um banco separado (`postgres_test`) para garantir velocidade e consistência.
+- **Executar testes no Container (Recomendado)**:
+  ```bash
+  docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app composer test
+  ```
+- **Executar testes no Host (Alternativo)**:
+  ```bash
+  vendor/bin/pest
+  ```
+
+### 2. Estilo de Código (Laravel Pint)
+O Pint é utilizado para formatar o código seguindo as convenções do Laravel.
+- **Verificar estilo no Container**:
+  ```bash
+  docker compose exec app vendor/bin/pint --test
+  ```
+- **Corrigir estilo automaticamente no Container**:
+  ```bash
+  docker compose exec app vendor/bin/pint
+  ```
+- **Executar no Host**:
+  ```bash
+  vendor/bin/pint
+  ```
+
+### 3. Análise Estática (PHPStan / Larastan)
+Utilizado para verificar a tipagem e erros potenciais de execução no nível 8.
+- **Executar análise no Container**:
+  ```bash
+  docker compose exec app vendor/bin/phpstan analyse --memory-limit=512M
+  ```
+- **Executar análise no Host**:
+  ```bash
+  vendor/bin/phpstan analyse --memory-limit=512M
+  ```
+
+### 4. Outros Comandos Artisan
+- **Acessar o terminal interativo (Tinker)**:
+  ```bash
+  docker compose exec app php artisan tinker
+  ```
+- **Instalar dependências do PHP (Composer)**:
+  ```bash
+  docker compose exec app composer install
+  ```
+- **Limpar o cache do Laravel**:
+  ```bash
+  docker compose exec app php artisan optimize:clear
+  ```
+
+---
+
+## 📁 Documentações Importantes
+- [Requisitos Funcionais e Regras de Negócio](specs/requisitos.md)
+- [Guia de Fases de Desenvolvimento](specs/passos_dev.md)
+- [Diretrizes para Agentes de IA](AGENTS.md)
+- [Contexto Geral do Projeto](CONTEXTO_PROJETO.md)
