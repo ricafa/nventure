@@ -12,11 +12,16 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Consolidação §3.2.10 (Caminho A): a `usuario` é a única tabela que já
+        // existia parcialmente; como o projeto está pré-produção, o esquema
+        // definitivo é refletido aqui (sem migration de ALTER separada).
+        // PK/FK INTEGER (SERIAL) e `criado_em` sem $table->timestamps() seguem a
+        // convenção §3.0 comum às 12 tabelas.
         Schema::create('usuario', function (Blueprint $table) {
-            $table->id();
+            $table->increments('id');
             $table->string('login', 60)->unique();
             $table->string('nome', 120);
-            $table->string('senha_hash');
+            $table->string('senha_hash', 255);
             $table->string('perfil', 20);
             $table->boolean('ativo')->default(true);
             $table->timestamp('criado_em')->useCurrent();
