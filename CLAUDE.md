@@ -1,5 +1,7 @@
 # NeverVenture — Risco de Mercado para Commodities
 
+- nunca commite como claude, apenas como meu usuario.
+
 Especificação e mocks do MVP de gestão de risco de mercado (MtM diário de derivativos sobre commodities).
 
 - `specs/requisitos.md` — especificação técnica vigente (fonte da verdade, v1.6).
