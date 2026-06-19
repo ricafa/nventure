@@ -2,7 +2,7 @@
 
 namespace App\Actions\Fortify;
 
-use App\Models\User;
+use App\Models\Usuario;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\UpdatesUserPasswords;
@@ -18,7 +18,7 @@ class UpdateUserPassword implements UpdatesUserPasswords
      *
      * @throws ValidationException
      */
-    public function update(User $user, array $input): void
+    public function update(Usuario $user, array $input): void
     {
         Validator::make($input, [
             'current_password' => ['required', 'string', 'current_password:web'],

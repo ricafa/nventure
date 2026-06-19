@@ -2,7 +2,7 @@
 
 namespace App\Actions\Fortify;
 
-use App\Models\User;
+use App\Models\Usuario;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\ResetsUserPasswords;
@@ -18,7 +18,7 @@ class ResetUserPassword implements ResetsUserPasswords
      *
      * @throws ValidationException
      */
-    public function reset(User $user, array $input): void
+    public function reset(Usuario $user, array $input): void
     {
         Validator::make($input, [
             'password' => $this->passwordRules(),

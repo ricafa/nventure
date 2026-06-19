@@ -2,16 +2,18 @@
 
 namespace Database\Factories;
 
-use App\Models\User;
+use App\Models\Usuario;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * @extends Factory<User>
+ * @extends Factory<Usuario>
  */
-class UserFactory extends Factory
+class UsuarioFactory extends Factory
 {
+    protected $model = Usuario::class;
+
     /**
      * The current password being used by the factory.
      */
@@ -32,13 +34,5 @@ class UserFactory extends Factory
             'ativo' => true,
             'remember_token' => Str::random(10),
         ];
-    }
-
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
-    public function unverified(): static
-    {
-        return $this;
     }
 }

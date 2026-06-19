@@ -2,7 +2,7 @@
 
 namespace App\Actions\Fortify;
 
-use App\Models\User;
+use App\Models\Usuario;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -19,21 +19,21 @@ class CreateNewUser implements CreatesNewUsers
      *
      * @throws ValidationException
      */
-    public function create(array $input): User
+    public function create(array $input): Usuario
     {
         Validator::make($input, [
             'login' => [
                 'required',
                 'string',
                 'max:60',
-                Rule::unique(User::class),
+                Rule::unique(Usuario::class),
             ],
             'nome' => ['required', 'string', 'max:120'],
             'perfil' => ['required', Rule::in(['OPERADOR', 'GESTOR', 'ADMIN'])],
             'password' => $this->passwordRules(),
         ])->validate();
 
-        return User::create([
+        return Usuario::create([
             'login' => $input['login'],
             'nome' => $input['nome'],
             'perfil' => $input['perfil'],

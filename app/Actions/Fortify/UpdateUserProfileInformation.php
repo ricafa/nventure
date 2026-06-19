@@ -2,7 +2,7 @@
 
 namespace App\Actions\Fortify;
 
-use App\Models\User;
+use App\Models\Usuario;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -17,7 +17,7 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
      *
      * @throws ValidationException
      */
-    public function update(User $user, array $input): void
+    public function update(Usuario $user, array $input): void
     {
         Validator::make($input, [
             'login' => [

@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\User;
+use App\Models\Usuario;
 
 it('redirects guests to the login page', function () {
     $this->get('/')
@@ -8,7 +8,7 @@ it('redirects guests to the login page', function () {
 });
 
 it('authenticates an active user with login and password', function () {
-    $user = User::factory()->create([
+    $user = Usuario::factory()->create([
         'login' => 'operador',
         'senha_hash' => 'password',
         'ativo' => true,
@@ -26,7 +26,7 @@ it('authenticates an active user with login and password', function () {
 });
 
 it('rejects inactive users', function () {
-    User::factory()->create([
+    Usuario::factory()->create([
         'login' => 'bloqueado',
         'senha_hash' => 'password',
         'ativo' => false,

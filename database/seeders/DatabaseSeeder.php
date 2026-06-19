@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
+use App\Models\Usuario;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($usuarios as $usuario) {
-            User::query()->updateOrCreate(
+            Usuario::query()->updateOrCreate(
                 ['login' => $usuario['login']],
                 $usuario + ['senha_hash' => 'password', 'ativo' => true],
             );

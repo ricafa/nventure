@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,6 +29,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Em dev/teste, acessar relação não carregada estoura (em vez de lazy loading
+        // silencioso). Força os Services a fazer eager loading e protege o laço do motor
+        // (D-206, §9.1). Desligado em produção para não derrubar uma requisição por uma
+        // relação esquecida.
+        Model::preventLazyLoading(! $this->app->isProduction());
     }
 }
