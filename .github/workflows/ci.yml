@@ -30,7 +30,7 @@ jobs:
         with:
           php-version: "8.3"
           extensions: bcmath, intl, pdo_pgsql, pgsql, zip
-          coverage: none
+          coverage: pcov          # gate de cobertura da Fase 3 (--min=90); falha explícita se faltar driver
 
       - uses: actions/setup-node@v4
         with:
@@ -64,4 +64,4 @@ jobs:
           DB_DATABASE: nventure_test
           DB_USERNAME: nventure
           DB_PASSWORD: nventure
-        run: vendor/bin/pest
+        run: vendor/bin/pest --coverage --min=90

@@ -16,6 +16,8 @@ RUN apt-get update \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && docker-php-ext-install bcmath intl pcntl pdo_pgsql pgsql zip \
+    && pecl install pcov \
+    && docker-php-ext-enable pcov \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

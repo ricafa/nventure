@@ -14,8 +14,22 @@
     </testsuites>
     <source>
         <include>
-            <directory>app</directory>
+            <!-- núcleo de cálculo (D-303): a meta de cobertura ≥ 90% mede só o cálculo dos Models -->
+            <directory>app/Models</directory>
         </include>
+        <exclude>
+            <!-- persistência pura: coberta por feature nas Fases 9–10, fora da meta de 90% -->
+            <file>app/Models/Produto.php</file>
+            <file>app/Models/PrecoReferencia.php</file>
+            <file>app/Models/MtmDiario.php</file>
+            <file>app/Models/MotorExecucao.php</file>
+            <file>app/Models/Usuario.php</file>
+            <file>app/Models/Movimentacao.php</file>
+            <file>app/Models/PosicaoFuturo.php</file>
+            <file>app/Models/PosicaoNdf.php</file>
+            <file>app/Models/PosicaoOpcao.php</file>
+            <file>app/Models/PosicaoOtc.php</file>
+        </exclude>
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
