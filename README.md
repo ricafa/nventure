@@ -113,6 +113,28 @@ A suite de testes utiliza um banco separado (`postgres_test`) para garantir velo
   docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app vendor/bin/pest --bail
   ```
 
+#### Testes da Parte 4 — Produtos & Preços
+- **Toda a suíte do módulo (API + Livewire + importador)**:
+  ```bash
+  docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app vendor/bin/pest tests/Feature/Produtos tests/Feature/Precos tests/Unit/Csv
+  ```
+- **Segurança/parsing do importador CSV (sem banco)**:
+  ```bash
+  docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app vendor/bin/pest tests/Unit/Csv/ImportadorPrecosCsvTest.php
+  ```
+- **API e tela de Produtos**:
+  ```bash
+  docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app vendor/bin/pest tests/Feature/Produtos
+  ```
+- **API, tela e upload CSV de Preços**:
+  ```bash
+  docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app vendor/bin/pest tests/Feature/Precos
+  ```
+- **Filtrar por nome do caso** (ex.: regra RN-010a):
+  ```bash
+  docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app vendor/bin/pest tests/Feature/Precos --filter="RN-010a"
+  ```
+
 ### 2. Estilo de Código (Laravel Pint)
 O Pint é utilizado para formatar o código seguindo as convenções do Laravel.
 - **Verificar estilo no Container**:
@@ -158,5 +180,6 @@ Utilizado para verificar a tipagem e erros potenciais de execução no nível 8.
 ## 📁 Documentações Importantes
 - [Requisitos Funcionais e Regras de Negócio](specs/requisitos.md)
 - [Guia de Fases de Desenvolvimento](specs/passos_dev.md)
+- [Guia de Uso — Produtos & Preços (Parte 4)](docs/uso-parte-4.md)
 - [Diretrizes para Agentes de IA](AGENTS.md)
 - [Contexto Geral do Projeto](CONTEXTO_PROJETO.md)

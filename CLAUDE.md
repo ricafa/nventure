@@ -54,6 +54,19 @@ Qualquer comando do Laravel Artisan ou Composer pode ser executado através do c
 ### Testes
 - Executar suite de testes: `docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app composer test` (ou `./vendor/bin/pest` dentro do container)
 
+### Módulo Produtos & Preços (Parte 4)
+- CRUD de produtos (soft delete por `ativo`) e ingestão de preços (manual + upload CSV),
+  com as RNs RN-007..010a nos serviços (`ServicoProdutos`/`ServicoPrecos`).
+- API REST: `GET|POST /api/v1/produtos`, `GET|PUT|DELETE /api/v1/produtos/{id}` (DELETE
+  inativa, não remove), `GET|POST /api/v1/precos`, `POST /api/v1/precos/upload`,
+  `DELETE /api/v1/precos/{id}`. Tudo sob `auth:sanctum` (autorização por perfil é Parte 10).
+- Telas web (Livewire): `/produtos` (listagem + form criar/editar/inativar) e `/precos`
+  (lançamento manual + upload CSV com relatório aceitas/rejeitadas + listagem filtrável).
+- Ingestão de CSV pela interface `FontePrecos` (`app/Support/Csv/ImportadorPrecosCsv`):
+  cabeçalho exato, anti-formula-injection (CWE-1236), limites 2 MB/5.000 linhas, aceita
+  Excel pt-BR (`;`/decimal `,`). Linha inválida vira rejeição no relatório (RN-010).
+- **Guia de uso (endpoints, exemplos, CSV, telas):** `docs/uso-parte-4.md`.
+
 ### Módulo Posições (Parte 7)
 - Quatro instrumentos (FUTURO, NDF, OPCAO, OTC) + movimentações de FUTURO (RN-020..025).
 - API REST: `GET/POST /api/v1/posicoes`, `POST /api/v1/posicoes/{futuro,ndf,opcao,otc}`,
