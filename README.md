@@ -182,4 +182,3 @@ Utilizado para verificar a tipagem e erros potenciais de execução no nível 8.
 - [Guia de Fases de Desenvolvimento](specs/passos_dev.md)
 - [Guia de Uso — Produtos & Preços (Parte 4)](docs/uso-parte-4.md)
 - [Diretrizes para Agentes de IA](AGENTS.md)
-- [Contexto Geral do Projeto](CONTEXTO_PROJETO.md)

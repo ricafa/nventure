@@ -52,24 +52,20 @@ Qualquer comando do Laravel Artisan ou Composer pode ser executado através do c
 ### Testes
 - Executar suite de testes: `docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app composer test` (ou `./vendor/bin/pest` dentro do container)
 
-### Módulo Posições (Parte 7)
-- Quatro instrumentos (FUTURO, NDF, OPCAO, OTC) + movimentações de FUTURO (RN-020..025).
-- API REST: `GET/POST /api/v1/posicoes`, `POST /api/v1/posicoes/{futuro,ndf,opcao,otc}`,
-  `GET /api/v1/posicoes/{id}`, `POST /api/v1/posicoes/{id}/encerrar`,
-  `DELETE /api/v1/posicoes/{id}`, `GET|POST /api/v1/posicoes/{id}/movimentacoes`.
-- Telas web (Livewire): `/posicoes` (listagem + detalhe + modal Movimentar) e
-  `/posicoes/nova` (cadastro dinâmico por instrumento).
-- As regras de negócio vivem nos serviços (`app/Services/`); o cadastro de
-  FUTURO cria a movimentação `ABERTURA` automática na mesma transação (RN-020).
+## Progresso de desenvolvimento
 
-### Motor MtM (Parte 8)
-- Processar o MtM de um dia manualmente: `docker compose exec app php artisan motor:processar --data=2026-05-23`
-  (sem `--data`, processa **hoje**; `--por=` define o `disparado_por`).
-- Agendamento (`routes/console.php`): `motor:processar` roda em dias úteis às 19:00. Em
-  produção, o cron do servidor chama `php artisan schedule:run` a cada minuto (hardening
-  na Parte 13).
-- Tela de operação: rota web `/motor` (Livewire). API REST: `POST /api/v1/motor/processar`,
-  `GET /api/v1/motor/execucoes`, `GET /api/v1/motor/execucoes/{id}`.
+> Roteiro completo em `specs/passos_dev.md` (Fase 0..14). Estado atual abaixo —
+> manter sincronizado conforme as fases forem concluídas.
+
+- **Concluído:** Fase 0 (Fundação), Fase 1 (Esqueleto MVC + banco), Fase 2 (Models +
+  cálculo), Fase 3 (testes unitários), Fase 4 (Produtos & Preços — Parte 6).
+- **Próximo passo: Fase 5 — Módulo Posições (Parte 7).** Cadastro dos 4 instrumentos
+  (FUTURO, NDF, OPCAO, OTC) + movimentações de FUTURO (RN-001..006, RN-020..025).
+  Ainda **não implementado**: não existem `ServicoPosicoes`/`ServicoMovimentacoes`, nem
+  as rotas/telas de posições. Os Models já existem (criados na Fase 2).
+- **Pendente depois:** Fase 6 — Motor MtM (Parte 8) e fases seguintes (Relatórios, seed,
+  testes de integração, RBAC, segurança, etc.).
+- Para especificar a próxima fase, use a skill `especificar-proximo-passo`.
 
 ## Pastas a ignorar
 

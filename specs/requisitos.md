@@ -1,6 +1,6 @@
 # Especificação técnica — MVP de gestão de risco de mercado para commodities
 
-**Versão:** 1.6
+**Versão:** 1.7
 **Escopo:** Mark-to-market diário, posição consolidada e P&L para instrumentos derivativos sobre commodities.
 
 ---
@@ -1300,7 +1300,112 @@ Roteiros para validação com a mesa de risco:
 
 ---
 
-## 12. Aprovação e versionamento
+## 12. Operação e desenvolvimento (MVC fat model)
+
+> Esta seção consolida a camada **operacional e de desenvolvimento** do projeto
+> (estrutura de pastas, ambiente, comandos, fundação, roteiro de fases e cuidados
+> de implementação) — antes mantida no arquivo `CONTEXTO_PROJETO.md`, agora
+> incorporada aqui. Em divergência sobre **regras de negócio (§7), modelo de dados
+> (§3) ou contratos de API (§5)**, valem aquelas seções. O detalhe por fase vive em
+> `specs/passos_dev.md`; a fundação executável, em `specs/spec_parte_0.md`.
+
+### 12.1 Estrutura de pastas (Alternativa A — *fat model*)
+
+- `app/Models/` — Eloquent "gordo": concentra persistência **e** o cálculo de MtM.
+- `app/Models/Concerns/` — aritmética reutilizável e cálculos puros (traits).
+- `app/Services/` — orquestração e regras transacionais usando Eloquent direto.
+- `app/Services/Dados/` — DTOs/read models de saída.
+- `app/Facades/` — fachadas convenientes dos serviços.
+- `app/Support/Csv/ImportadorPrecosCsv` — ingestão via interface `FontePrecos`
+  (único ponto de extensão de ingestão).
+
+**Regra de ouro:** o motor MtM itera `Posicao` e chama `calcularMtm()` **sem
+`if`/`switch`** por tipo de instrumento. O único `match` por instrumento fica na
+hidratação polimórfica `Posicao::newFromBuilder` (§4.5).
+
+### 12.2 Ambiente Docker
+
+A aplicação e os bancos rodam em **Docker Compose** (paridade de ambiente), com
+três serviços:
+
+- `app` — aplicação Laravel (web em `http://localhost:8000`).
+- `postgres` — banco de **desenvolvimento**.
+- `postgres_test` — banco de **teste**, separado e efêmero.
+
+Comandos:
+
+- Subir / derrubar / rebuild / logs: `docker compose up -d` · `docker compose down`
+  · `docker compose build` · `docker compose logs -f app`
+- Migrations: `docker compose exec app php artisan migrate` (ou `migrate --seed`
+  para carregar dados de demonstração).
+- Tinker: `docker compose exec app php artisan tinker`
+- Dependências: `docker compose exec app composer install`
+
+### 12.3 Testes e qualidade
+
+- Testes (Pest) contra o banco de teste:
+  `docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app composer test`
+- Estilo (Pint): `vendor/bin/pint --test` (verifica) / `vendor/bin/pint` (corrige).
+- Análise estática (PHPStan/Larastan **nível 8**):
+  `vendor/bin/phpstan analyse --memory-limit=512M`
+- CI (GitHub Actions): estilo + estática + testes em cada push/PR, com serviço Postgres.
+- Metas de cobertura: ver §8.4.
+
+### 12.4 Fundação (Parte 0) — decisões fixadas
+
+- Laravel 13 · PHP 8.3 · PostgreSQL 15+.
+- Starter kit oficial **Livewire** com auth **Fortify** built-in (sem WorkOS).
+- Locale `pt_BR`.
+- Tabela **`usuario`** (não `users`); login pelo campo `login`; senha em `senha_hash`.
+- Registro público, verificação de e-mail e reset de senha **desabilitados**.
+
+**DoD da Parte 0:** `docker compose up -d` sobe `app`/`postgres`/`postgres_test`; o
+login autentica contra `usuario` por `login`/senha; os testes rodam contra
+`postgres_test`; Pint e PHPStan passam; CI verde.
+
+### 12.5 Roteiro de implementação (fases)
+
+> Detalhe completo (objetivo, entregáveis, tarefas, DoD) em `specs/passos_dev.md`.
+> Estas são as **fases de desenvolvimento** — não confundir com o roadmap de
+> produto pós-MVP do §10.
+
+Fase 0 Fundação · 1 Esqueleto MVC + migrations · 2 Models + cálculo · 3 Testes
+unitários · 4 Produtos & Preços · 5 Posições & movimentações · 6 Motor MtM ·
+7 Relatórios · 8 Seed & demo · 9 Testes de integração · 10 RBAC & autenticação ·
+11 Segurança · 12 Não-funcionais · 13 Regressão & CI gates · 14 Hardening & entrega.
+
+### 12.6 Motor MtM — operação
+
+- Processar uma data manualmente:
+  `docker compose exec app php artisan motor:processar --data=YYYY-MM-DD`
+  (sem `--data`, processa **hoje**).
+- Agendamento: dias úteis às 19:00 (`routes/console.php`); em produção, o cron do
+  servidor chama `php artisan schedule:run`. As regras de cálculo estão em §4.4/§7.3.
+
+### 12.7 Cuidados de desenvolvimento
+
+- **Não** ler, editar ou usar `historic-plans/` (arquivo morto, desatualizado).
+- Preservar **MVC fat model**; não introduzir DDD em camadas, repositórios ou
+  domínio separado.
+- Preservar o polimorfismo do motor (condicionais por tipo não pertencem ao motor).
+- Usar transações + `lockForUpdate` nos serviços de movimentação.
+- Movimentações são **imutáveis** no MVP (RN-025).
+- CSV: validar tipos, tamanho/linhas e prevenir *formula injection* (CWE-1236).
+- Usar **PostgreSQL** para recursos que o SQLite não cobre bem: índice parcial,
+  `NUMERIC`, `JSONB`.
+- **Commits:** nunca como Claude — apenas como o usuário.
+
+### 12.8 Documentos do projeto
+
+- `specs/requisitos.md` — esta especificação (fonte da verdade).
+- `specs/passos_dev.md` — roteiro de fases 0..14.
+- `specs/spec_parte_0.md` e demais `spec_parte_N.md` — specs executáveis por fase.
+- `CLAUDE.md` / `AGENTS.md` — instruções para agentes e comandos.
+- `mock_telas/` — mock interativo das telas.
+
+---
+
+## 13. Aprovação e versionamento
 
 | Versão | Data | Autor | Mudança |
 |---|---|---|---|
@@ -1311,6 +1416,7 @@ Roteiros para validação com a mesa de risco:
 | 1.4 | 2026-06-13 | Equipe de produto | Migração de stack para **Laravel**: §2.2 atualizado (PHP 8.2+/Laravel 11/Eloquent/Migrations/Blade+Livewire/Sanctum; PostgreSQL mantido); código de referência do §4 (classes de domínio, motor e repositório) convertido de Python para PHP preservando as fórmulas; exemplos de teste do §8.1 convertidos para Pest; §9.2 (autenticação) ajustado para Sanctum. Regras de negócio (§7), modelo de dados (§3) e contratos da API (§5) permanecem inalterados |
 | 1.5 | 2026-06-17 | Equipe de produto | Re-arquitetura **DDD em camadas → MVC nativo com *fat model*** (Alternativa A): §2.2 (ORM) e §4 (hierarquia de classes) passam de domínio em PHP puro + repositórios para **Models Eloquent gordos** com cálculo de MtM embutido; o motor (§4.4) itera Models direto e usa `MtmDiario::updateOrCreate` (sem contratos/repositórios); o `match` da factory (§4.5) vira `newFromBuilder`, preservando o polimorfismo; salvaguardas de cálculo puro/*traits* e namespaces (`App\Models\`) ajustados em §4 e §8.1/§8.4. Regras de negócio (§7), modelo de dados (§3) e contratos da API (§5) permanecem inalterados |
 | 1.6 | 2026-06-17 | Equipe de produto | Atualização de stack para **Laravel 13 / PHP 8.3+** (§2.2; suportado 8.3–8.5). Acompanha a especificação da fundação em `specs/spec_parte_0.md` (starter kit Livewire + Flux UI adaptado a `usuario`, Docker, CI GitHub Actions). Regras de negócio (§7), modelo de dados (§3) e contratos da API (§5) permanecem inalterados |
+| 1.7 | 2026-06-20 | Equipe de produto | Incorporada a **camada de operação e desenvolvimento** como nova §12 (estrutura de pastas, ambiente Docker, testes/qualidade, fundação Parte 0, roteiro de fases, operação do motor e cuidados de desenvolvimento), antes mantida no arquivo `CONTEXTO_PROJETO.md` — agora removido. Versionamento renumerado para §13. Regras de negócio (§7), modelo de dados (§3) e contratos da API (§5) permanecem inalterados |
 
 ---
 
