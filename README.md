@@ -76,13 +76,41 @@ Todos os comandos de desenvolvimento devem ser executados através do container 
 
 ### 1. Testes Automatizados (Pest)
 A suite de testes utiliza um banco separado (`postgres_test`) para garantir velocidade e consistência.
-- **Executar testes no Container (Recomendado)**:
+
+#### Executar Testes Completos
+- **No Container (Recomendado)**:
   ```bash
   docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app composer test
   ```
-- **Executar testes no Host (Alternativo)**:
+- **No Host**:
   ```bash
   vendor/bin/pest
+  ```
+
+#### Opções Úteis de Teste
+- **Rodar com relatório de cobertura**:
+  ```bash
+  docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app vendor/bin/pest --coverage
+  ```
+- **Rodar apenas testes de um arquivo**:
+  ```bash
+  docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app vendor/bin/pest tests/Unit/Models/PosicaoTest.php
+  ```
+- **Rodar apenas testes unitários**:
+  ```bash
+  docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app vendor/bin/pest tests/Unit
+  ```
+- **Rodar apenas testes de integração/feature**:
+  ```bash
+  docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app vendor/bin/pest tests/Feature
+  ```
+- **Rodar com output detalhado (verbose)**:
+  ```bash
+  docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app vendor/bin/pest -v
+  ```
+- **Parar no primeiro teste que falhar**:
+  ```bash
+  docker compose exec -e DB_HOST=postgres_test -e DB_PORT=5432 app vendor/bin/pest --bail
   ```
 
 ### 2. Estilo de Código (Laravel Pint)

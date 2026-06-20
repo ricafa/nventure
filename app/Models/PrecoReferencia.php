@@ -2,8 +2,12 @@
 
 namespace App\Models;
 
+use Database\Factories\PrecoReferenciaFactory;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -19,9 +23,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $taxa_juros
  * @property Carbon $criado_em
  * @property-read Produto $produto
+ * @property-read Collection<int, MtmDiario> $mtms
  */
 class PrecoReferencia extends Model
 {
+    /** @use HasFactory<PrecoReferenciaFactory> */
+    use HasFactory;
+
     protected $table = 'preco_referencia';
 
     public $timestamps = false;
@@ -48,5 +56,16 @@ class PrecoReferencia extends Model
     public function produto(): BelongsTo
     {
         return $this->belongsTo(Produto::class, 'produto_id');
+    }
+
+    /**
+     * MtMs que referenciam este preço (FK `preco_ref_id`) — base da RN-010a:
+     * um preço já usado em cálculo de MtM não pode ser removido.
+     *
+     * @return HasMany<MtmDiario, $this>
+     */
+    public function mtms(): HasMany
+    {
+        return $this->hasMany(MtmDiario::class, 'preco_ref_id');
     }
 }

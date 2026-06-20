@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\ServicoPrecos;
+use App\Services\ServicoProdutos;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
 
@@ -15,13 +17,11 @@ class AppServiceProvider extends ServiceProvider
         // -------------------------------------------------------------------
         // Bindings / Singletons de serviços (origem das Facades — app/Facades)
         // -------------------------------------------------------------------
-        // Os serviços de aplicação (ServicoProdutos, ServicoPrecos,
-        // ServicoPosicoes, ServicoMotor, …) e suas Facades convenientes
-        // (Posicoes, Motor, …) chegam a partir da Fase 4. Registrar aqui, ex.:
-        //
-        //     $this->app->singleton(\App\Services\ServicoMotor::class);
-        //
-        // Por ora nenhum serviço existe; região reservada (esqueleto).
+        // Os serviços de aplicação (ServicoPosicoes, ServicoMotor, …) e suas
+        // Facades convenientes (Posicoes, Motor, …) chegam nas próximas fases.
+        // Parte 4 — Produtos & Preços (D-410):
+        $this->app->singleton(ServicoProdutos::class);
+        $this->app->singleton(ServicoPrecos::class);
     }
 
     /**

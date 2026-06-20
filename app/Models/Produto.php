@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use Database\Factories\ProdutoFactory;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
@@ -22,6 +24,9 @@ use Illuminate\Support\Carbon;
  */
 class Produto extends Model
 {
+    /** @use HasFactory<ProdutoFactory> */
+    use HasFactory;
+
     protected $table = 'produto';
 
     public $timestamps = false;
