@@ -67,19 +67,38 @@ Qualquer comando do Laravel Artisan ou Composer pode ser executado através do c
   Excel pt-BR (`;`/decimal `,`). Linha inválida vira rejeição no relatório (RN-010).
 - **Guia de uso (endpoints, exemplos, CSV, telas):** `docs/uso-parte-4.md`.
 
+### Módulo Posições (Parte 5 / Parte 7)
+- Cadastro dos 4 instrumentos (`ServicoPosicoes::criarFuturo/criarNdf/criarOpcao/criarOtc`)
+  em transação mãe→filha; FUTURO ainda gera a `ABERTURA` automática (RN-020). Cada
+  `create()` injeta `criado_por` no Service (`Auth::user()?->login ?? 'sistema'`, D-507);
+  os Form Requests **não** aceitam o campo. RN-006 (indexador do OTC = produto cadastrado)
+  é lookup no Service; demais RNs estruturais (RN-001..005) nos Form Requests por instrumento.
+- Movimentações de FUTURO (`ServicoMovimentacoes::movimentarFuturo`) sob `DB::transaction` +
+  `lockForUpdate`: valida RN-022 (redução ≤ saldo) **antes** do INSERT, recarrega
+  `movimentacoes` para o `replay()`, consolida só `quantidade`/`status` (preço médio **não**
+  é persistido — derivado, D-504) e devolve `EstadoMovimentacao`. Redução total → `ENCERRADA`.
+- Deleção segura: `DELETE /posicoes/{id}` só sem MtM (D-502, 409 caso contrário); pós-MtM o
+  caminho é `POST /posicoes/{id}/encerrar` (transição idempotente `ABERTA→ENCERRADA`, D-507).
+- API REST (sob `auth:sanctum`): `GET /posicoes` (paginada, filtros status/produto_id),
+  `GET /posicoes/{id}`, `POST /posicoes/{futuro|ndf|opcao|otc}`, `POST /posicoes/{id}/encerrar`,
+  `DELETE /posicoes/{id}`, `GET|POST /posicoes/{id}/movimentacoes`. DTOs em
+  `app/Services/Dados/` (`PosicaoResumo`/`PosicaoDetalhe`/`EstadoMovimentacao`).
+- Telas Livewire: `/posicoes` (listagem + filtros + modal de detalhe/movimentar) e
+  `/posicoes/nova` (formulário dinâmico por instrumento, pernas dinâmicas na OPCAO).
+
 ## Progresso de desenvolvimento
 
 > Roteiro completo em `specs/passos_dev.md` (Fase 0..14). Estado atual abaixo —
 > manter sincronizado conforme as fases forem concluídas.
 
 - **Concluído:** Fase 0 (Fundação), Fase 1 (Esqueleto MVC + banco), Fase 2 (Models +
-  cálculo), Fase 3 (testes unitários), Fase 4 (Produtos & Preços — Parte 6).
-- **Próximo passo: Fase 5 — Módulo Posições (Parte 7).** Cadastro dos 4 instrumentos
-  (FUTURO, NDF, OPCAO, OTC) + movimentações de FUTURO (RN-001..006, RN-020..025).
-  Ainda **não implementado**: não existem `ServicoPosicoes`/`ServicoMovimentacoes`, nem
-  as rotas/telas de posições. Os Models já existem (criados na Fase 2).
-- **Pendente depois:** Fase 6 — Motor MtM (Parte 8) e fases seguintes (Relatórios, seed,
-  testes de integração, RBAC, segurança, etc.).
+  cálculo), Fase 3 (testes unitários), Fase 4 (Produtos & Preços — Parte 6), Fase 5
+  (Módulo Posições — Parte 7).
+- **Próximo passo: Fase 6 — Motor MtM (Parte 8).** Cálculo polimórfico iterando sobre as
+  posições (incluindo `VENCIDA`, RN-014), `updateOrCreate` idempotente por
+  `posicao_id + data_calculo` e endpoints `/motor/*`.
+- **Pendente depois:** fases seguintes (Relatórios, seed, testes de integração, RBAC,
+  segurança, etc.).
 
 ## Pastas a ignorar
 

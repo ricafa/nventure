@@ -1,5 +1,7 @@
 <?php
 
+use App\Livewire\Posicoes\FormNovaPosicao;
+use App\Livewire\Posicoes\ListaPosicoes;
 use App\Livewire\Precos\LancamentoPrecos;
 use App\Livewire\Produtos\ListaProdutos;
 use Illuminate\Support\Facades\Route;
@@ -18,4 +20,8 @@ Route::view('/dashboard', 'dashboard')
 Route::middleware('auth')->group(function () {
     Route::get('/produtos', ListaProdutos::class)->name('produtos.index');
     Route::get('/precos', LancamentoPrecos::class)->name('precos.index');
+
+    // Parte 5 — Posições (§5.2.3 telas). /nova antes de qualquer rota com parâmetro.
+    Route::get('/posicoes/nova', FormNovaPosicao::class)->name('posicoes.nova');
+    Route::get('/posicoes', ListaPosicoes::class)->name('posicoes.index');
 });
