@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\ErroConflito;
+use App\Exceptions\ErroNaoEncontrado;
 use App\Exceptions\ErroValidacao;
 use App\Models\Futuro;
 use App\Models\Ndf;
@@ -52,7 +53,10 @@ class ServicoPosicoes
      */
     public function detalhar(int $id): PosicaoDetalhe
     {
-        return PosicaoDetalhe::deModel(Posicao::query()->findOrFail($id));
+        $posicao = Posicao::query()->find($id)
+            ?? throw new ErroNaoEncontrado('Posição não encontrada.');
+
+        return PosicaoDetalhe::deModel($posicao);
     }
 
     /** @param array<string, mixed> $dados */
@@ -160,7 +164,8 @@ class ServicoPosicoes
     /** Deleção só "virgem" (sem MtM); pós-MtM o caminho é `encerrar` (D-502). */
     public function remover(int $id): void
     {
-        $posicao = Posicao::query()->findOrFail($id);
+        $posicao = Posicao::query()->find($id)
+            ?? throw new ErroNaoEncontrado('Posição não encontrada.');
 
         if ($posicao->mtmDiarios()->exists()) { // D-502
             throw new ErroConflito('Posição já possui registro de MtM. Utilize o encerramento em vez de deletar.');
@@ -177,7 +182,8 @@ class ServicoPosicoes
     public function encerrar(int $id): Posicao
     {
         return DB::transaction(function () use ($id) {
-            $posicao = Posicao::query()->lockForUpdate()->findOrFail($id);
+            $posicao = Posicao::query()->lockForUpdate()->find($id)
+                ?? throw new ErroNaoEncontrado('Posição não encontrada.');
 
             if ($posicao->status === 'ENCERRADA') {
                 return $posicao; // idempotente

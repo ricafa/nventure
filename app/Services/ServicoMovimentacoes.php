@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\ErroConflito;
+use App\Exceptions\ErroNaoEncontrado;
 use App\Exceptions\ErroValidacao;
 use App\Models\Futuro;
 use App\Models\Posicao;
@@ -32,7 +33,8 @@ class ServicoMovimentacoes
     {
         return DB::transaction(function () use ($posicaoId, $dados) {
             /** @var Futuro $posicao */
-            $posicao = Posicao::query()->lockForUpdate()->findOrFail($posicaoId);
+            $posicao = Posicao::query()->lockForUpdate()->find($posicaoId)
+                ?? throw new ErroNaoEncontrado('Posição não encontrada.');
 
             // 409: só FUTURO ABERTA aceita movimentação (§5.2.3).
             if ($posicao->instrumento !== 'FUTURO' || $posicao->status !== 'ABERTA') {

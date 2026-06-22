@@ -149,6 +149,12 @@ it('lista movimentações de um FUTURO', function () {
         ->assertJsonCount(2, 'data'); // ABERTURA + AUMENTO
 });
 
+it('movimentar posição inexistente devolve 404 no envelope §5.1', function () {
+    $this->postJson('/api/v1/posicoes/999999/movimentacoes', [
+        'tipo' => 'AUMENTO', 'data_movimentacao' => '2026-06-01', 'quantidade' => 5, 'preco' => 120,
+    ])->assertStatus(404)->assertJsonPath('erro', 'ERRO_NAO_ENCONTRADO');
+});
+
 it('valida estrutura da movimentação (tipo/quantidade/preço) com 422 nativo', function () {
     $id = futuroBase($this->produto->id);
 

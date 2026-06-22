@@ -82,6 +82,18 @@ it('encerrar NÃO é bloqueado por MtM (ao contrário do DELETE, D-507)', functi
         ->assertJsonPath('data.status', 'ENCERRADA');
 });
 
+it('DELETE de posição inexistente devolve 404 no envelope §5.1', function () {
+    $this->deleteJson('/api/v1/posicoes/999999')
+        ->assertStatus(404)
+        ->assertJsonPath('erro', 'ERRO_NAO_ENCONTRADO');
+});
+
+it('encerrar posição inexistente devolve 404 no envelope §5.1', function () {
+    $this->postJson('/api/v1/posicoes/999999/encerrar')
+        ->assertStatus(404)
+        ->assertJsonPath('erro', 'ERRO_NAO_ENCONTRADO');
+});
+
 it('reduções sucessivas respeitam o saldo consolidado sob lock (RN-022, D-501)', function () {
     // Prova que posicao.quantidade consolidada é a fonte única: a 2ª redução que
     // excede o saldo remanescente é barrada (o lockForUpdate serializa o acesso).

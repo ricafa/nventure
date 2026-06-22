@@ -190,6 +190,14 @@ it('detalha posição com dados do tipo (200)', function () {
         ->assertJsonCount(1, 'data.movimentacoes');
 });
 
+it('detalhe de posição inexistente devolve 404 no envelope §5.1', function () {
+    autenticaPosicoes();
+
+    $this->getJson('/api/v1/posicoes/999999')
+        ->assertStatus(404)
+        ->assertJsonPath('erro', 'ERRO_NAO_ENCONTRADO');
+});
+
 it('exige autenticação (401 sem token)', function () {
     $this->getJson('/api/v1/posicoes')->assertUnauthorized();
 });
