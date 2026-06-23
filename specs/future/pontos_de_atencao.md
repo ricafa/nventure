@@ -30,3 +30,12 @@ Existem paradoxos entre os objetivos pretendidos e as fórmulas matemáticas da 
 1. **Abandone floats primitivos:** Substitua o uso de `float` do PHP por cálculos com `BCMath` em toda a matemática de P&L e quantidades.
 2. **Implemente o Estorno:** Mesmo mantendo a imutabilidade das linhas atuais, adicione um tipo de movimentação `ESTORNO` para reverter cálculos incorretos de forma auditável e autônoma pelo usuário.
 3. **Cache de Posição de Futuros:** Repense o `replay()` em memória do `Futuro` ou crie cache (na tabela `posicao_futuro`) para a `quantidade_atual` e o `preco_medio` a cada nova transação, permitindo que o motor obtenha os valores consolidados em complexidade O(1).
+
+## 5. Adendos por fase (itens adiados deliberadamente)
+
+*   **(Fase 7 — Relatórios, BX-5 da crítica) Janela/paginação do `historico-mtm`:** o endpoint
+    `GET /relatorios/historico-mtm?posicao_id=` carrega **todo** o histórico de MtM da posição sem
+    janela nem limite. Para 1 ano de dados (§9.1) é aceitável no MVP, mas quando a base de
+    `mtm_diario` inchar isso vira payload grande e consulta pesada. Adicionar paginação/recorte por
+    janela (`?de=&ate=` ou `limit`) é refinamento de **escala (Fase 12)**, junto com o *load test*
+    formal e a denormalização do preço médio do FUTURO.

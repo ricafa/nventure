@@ -121,6 +121,18 @@ class Posicao extends Model
         return 0.0;
     }
 
+    /**
+     * Quantidade de exposição para o relatório RN-019 (D-705). Default = a coluna
+     * consolidada `quantidade` (RN-024) — vale para FUTURO/OTC e, herdada, mantém a
+     * OPCAO em 1 (RN-004e/D-705a, fora do tratamento por nocional). Só o `Ndf`
+     * sobrescreve, devolvendo o nocional em moeda. Mantém o polimorfismo *fat model*:
+     * novo instrumento = novo override, o `ServicoRelatorios` não muda.
+     */
+    public function quantidadeExposicao(): float
+    {
+        return self::paraFloat($this->quantidade);          // RN-024
+    }
+
     /** Base concreta por exigência do Eloquent; toda linha real cai numa subclasse (D-204). */
     public function calcularMtm(float $precoMercado): float
     {

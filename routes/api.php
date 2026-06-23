@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\MotorController;
 use App\Http\Controllers\Api\V1\PosicaoController;
 use App\Http\Controllers\Api\V1\PrecoController;
 use App\Http\Controllers\Api\V1\ProdutoController;
+use App\Http\Controllers\Api\V1\RelatorioController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -41,4 +42,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('motor/processar', [MotorController::class, 'processar']);
     Route::get('motor/execucoes', [MotorController::class, 'index']);
     Route::get('motor/execucoes/{id}', [MotorController::class, 'show'])->whereNumber('id');
+
+    // §5.2.5 Relatórios (AuthZ por perfil é Fase 10, D-709). Cada um aceita ?formato=json|csv|pdf.
+    Route::get('relatorios/posicao-aberta', [RelatorioController::class, 'posicaoAberta']);
+    Route::get('relatorios/pl-diario', [RelatorioController::class, 'plDiario']);
+    Route::get('relatorios/exposicao-liquida', [RelatorioController::class, 'exposicaoLiquida']);
+    Route::get('relatorios/historico-mtm', [RelatorioController::class, 'historicoMtm']);
 });

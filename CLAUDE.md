@@ -110,6 +110,30 @@ Qualquer comando do Laravel Artisan ou Composer pode ser executado através do c
   HTTP); disparo + resumo + histórico de execuções. DTOs em `app/Services/Dados/`
   (`ResultadoProcessamento`/`RegistroMtm`/`ResumoExecucao`).
 
+### Módulo Relatórios (Parte 7 / Parte 9)
+- `ServicoRelatorios` (D-701): leitura agregada das 4 visões sobre `mtm_diario`; **não recalcula
+  MtM** — soma/agrupa valores prontos. O coração é o `snapshot()` (D-702): último `mtm_diario`
+  com `data_calculo <= data` de cada posição ABERTA, em **um** `DISTINCT ON` (PostgreSQL-only).
+  Posição sem MtM `<= data` aparece com `tem_mtm=false`/zeros. PM do FUTURO reusa `Futuro::precoMedio()`.
+- Exposição (RN-019) usa **`Posicao::quantidadeExposicao()` polimórfico** (D-705, sem `if` no Service):
+  base = `quantidade` (FUTURO/OTC), `Ndf` sobrescreve → `valor_nocional`, OPCAO herda `1` (D-705a, sem
+  delta no MVP). `ExposicaoProduto` expõe `mix` (contagem por tipo) e `unidade_mista` (`mix['NDF']>0 &&
+  (mix['FUTURO']>0 || mix['OTC']>0)`) sinalizando o mismatch contratos×nocional.
+- P&L: diário (RN-017) = `Σ variacao_dia` na **data exata**; acumulado (RN-018) = `Σ pl_acumulado` do
+  snapshot das ABERTA (inclui realizado, RN-023). A série do gráfico usa `SUM(pl_acumulado)` (D-704),
+  não `SUM(mtm_valor)`. Histórico (`historico-mtm`) é a série de uma posição; `find() ?? throw
+  ErroNaoEncontrado` (404 no envelope §5.1, **não** `findOrFail`).
+- API REST (sob `auth:sanctum`, sem AuthZ por perfil — Fase 10, D-709): `GET /relatorios/posicao-aberta`,
+  `/pl-diario`, `/exposicao-liquida`, `/historico-mtm`. `RelatorioRequest` (`data` opcional → hoje;
+  helper `dataRef()` — `data()` colidiria com `Request::data()`) e `HistoricoMtmRequest` dedicado
+  (`posicao_id` `required` → 422 se ausente). `?formato=json|csv|pdf`: `csv` via `ExportadorCsv`
+  (CWE-1236, BOM, `StreamedResponse`); `pdf` → **501** `FORMATO_INDISPONIVEL` (no contrato, diferido,
+  D-707). Controller tipado `Symfony\...\Response` (supertipo de `StreamedResponse`+`JsonResponse`, A-1).
+- Telas Livewire sob `auth` (D-708): `Dashboard` (rota `dashboard`, home autenticada — §6.2/BX-4),
+  `/relatorios/posicao-aberta`, `/relatorios/pl`, `/relatorios/exposicao`; injetam `ServicoRelatorios`
+  (sem auto-HTTP, D-610). DTOs em `app/Services/Dados/` (`RelatorioPosicaoAberta`/`LinhaPosicaoAberta`/
+  `ResumoPL`/`ExposicaoProduto`/`PontoHistoricoMtm`). **Guia:** `docs/uso-parte-7.md`.
+
 ## Progresso de desenvolvimento
 
 > Roteiro completo em `specs/passos_dev.md` (Fase 0..14). Estado atual abaixo —
@@ -117,11 +141,11 @@ Qualquer comando do Laravel Artisan ou Composer pode ser executado através do c
 
 - **Concluído:** Fase 0 (Fundação), Fase 1 (Esqueleto MVC + banco), Fase 2 (Models +
   cálculo), Fase 3 (testes unitários), Fase 4 (Produtos & Preços — Parte 6), Fase 5
-  (Módulo Posições — Parte 7), Fase 6 (Motor MtM — Parte 8).
-- **Próximo passo: Fase 7 — Relatórios (Parte 9).** As 4 visões consolidadas (§5.2.5)
-  sobre o histórico de `mtm_diario` produzido pelo motor.
-- **Pendente depois:** fases seguintes (seed/dataset, testes de integração, RBAC,
-  segurança, etc.).
+  (Módulo Posições — Parte 7), Fase 6 (Motor MtM — Parte 8), Fase 7 (Relatórios — Parte 9).
+- **Próximo passo: Fase 8 — Seed & dados de demonstração** (`passos_dev.md`): portfólio
+  realista com histórico de MtM (produto → preço → posição → movimentação → motor) que
+  torna os 4 relatórios "ricos" em dev/demo/UAT.
+- **Pendente depois:** fases seguintes (testes de integração, RBAC, segurança, etc.).
 
 ## Pastas a ignorar
 

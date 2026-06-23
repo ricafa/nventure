@@ -15,8 +15,14 @@
                         <p class="text-sm font-medium uppercase tracking-wide text-emerald-700">NeverVenture</p>
                     </a>
                     <nav class="flex items-center gap-4 text-sm font-medium text-zinc-600">
+                        <a href="{{ route('dashboard') }}" class="hover:text-emerald-700">Dashboard</a>
                         <a href="{{ route('produtos.index') }}" class="hover:text-emerald-700">Produtos</a>
                         <a href="{{ route('precos.index') }}" class="hover:text-emerald-700">Preços</a>
+                        <a href="{{ route('posicoes.index') }}" class="hover:text-emerald-700">Posições</a>
+                        <a href="{{ route('motor.index') }}" class="hover:text-emerald-700">Motor</a>
+                        <a href="{{ route('relatorios.posicao-aberta') }}" class="hover:text-emerald-700">Posição</a>
+                        <a href="{{ route('relatorios.pl') }}" class="hover:text-emerald-700">P&amp;L</a>
+                        <a href="{{ route('relatorios.exposicao') }}" class="hover:text-emerald-700">Exposição</a>
                     </nav>
                 </div>
                 <form method="POST" action="{{ route('logout') }}">

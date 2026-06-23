@@ -25,4 +25,14 @@ class Ndf extends Posicao
              * self::paraFloat($this->ndf->valor_nocional)
              * $this->sinal();
     }
+
+    /**
+     * Exposição do NDF (RN-019/D-705): o tamanho econômico é o **nocional em moeda**,
+     * não o campo base `quantidade`. Lê `$this->ndf` — exige eager loading de `ndf` no
+     * Service (`ServicoRelatorios::exposicaoLiquida`) para não gerar N+1.
+     */
+    public function quantidadeExposicao(): float
+    {
+        return self::paraFloat($this->ndf->valor_nocional);  // RN-019 sobre o nocional
+    }
 }
