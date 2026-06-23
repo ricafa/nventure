@@ -86,6 +86,30 @@ Qualquer comando do Laravel Artisan ou Composer pode ser executado através do c
 - Telas Livewire: `/posicoes` (listagem + filtros + modal de detalhe/movimentar) e
   `/posicoes/nova` (formulário dinâmico por instrumento, pernas dinâmicas na OPCAO).
 
+### Módulo Motor MtM (Parte 6 / Parte 8)
+- Dois serviços (D-601, §4.4): `MotorMtm` é o **laço de cálculo** (itera `Posicao` ABERTA por
+  subclasse com eager loading, `calcularMtm()` polimórfico **sem `if`/`switch` por tipo**, UPSERT
+  idempotente em `mtm_diario`, marca `VENCIDA`) e `ServicoMotor` é a **orquestração/auditoria**
+  (abre/fecha `motor_execucao`, consolida totais/falhas, devolve `ResumoExecucao`).
+- Auditoria abre **antes** do laço e o `execucao_id` propaga a cada `mtm_diario` (D-602). Toda
+  execução fica registrada, inclusive as que terminam só com falhas.
+- Idempotência (RN-013) via `firstOrNew` + `isDirty` em vez de `updateOrCreate` direto:
+  **proveniência condicional** (D-604) — `execucao_id`/`processado_em` só são recarimbados quando
+  um valor financeiro muda; reprocessamento estéril conta como sucesso mas não toca a autoria.
+- `VENCIDA` (RN-014, D-605): marca-se só posições com **sucesso ∩ `data_vencimento <= data_calculo`**,
+  sob `lockForUpdate`; falha (ex.: sem preço) **permanece `ABERTA`** para reprocessar. Isolamento de
+  falhas (RN-012, D-606): `try/catch` **por posição** sob `DB::transaction` local — o lote não é atômico.
+- Conversão BRL (RN-015, D-607) polimórfica e sem caso especial; `pl_acumulado = mtmBrl + plRealizado()*cambio`
+  (RN-023); `variacao_dia = mtmBrl − mtmOntem`. `float` nativo mantido (BCMath/Money é Fase 12).
+- API REST (sob `auth:sanctum`, **sem** AuthZ por perfil — Fase 10, D-612): `POST /motor/processar`
+  (200 com `ResumoExecucao` flat §5.2.4, sem wrapper `data`, `data_calculo` **obrigatório**, D-611),
+  `GET /motor/execucoes`, `GET /motor/execucoes/{id}`.
+- Command `motor:processar {--data=}` (D-609): sem `--data` processa **hoje**, `disparado_por='agendador'`;
+  agendamento `Schedule::command('motor:processar')->weekdays()->at('19:00')` em `routes/console.php`.
+- Tela Livewire `/motor` (D-610): injeta `ServicoMotor` e chama o método PHP direto (sem auto-chamada
+  HTTP); disparo + resumo + histórico de execuções. DTOs em `app/Services/Dados/`
+  (`ResultadoProcessamento`/`RegistroMtm`/`ResumoExecucao`).
+
 ## Progresso de desenvolvimento
 
 > Roteiro completo em `specs/passos_dev.md` (Fase 0..14). Estado atual abaixo —
@@ -93,11 +117,10 @@ Qualquer comando do Laravel Artisan ou Composer pode ser executado através do c
 
 - **Concluído:** Fase 0 (Fundação), Fase 1 (Esqueleto MVC + banco), Fase 2 (Models +
   cálculo), Fase 3 (testes unitários), Fase 4 (Produtos & Preços — Parte 6), Fase 5
-  (Módulo Posições — Parte 7).
-- **Próximo passo: Fase 6 — Motor MtM (Parte 8).** Cálculo polimórfico iterando sobre as
-  posições (incluindo `VENCIDA`, RN-014), `updateOrCreate` idempotente por
-  `posicao_id + data_calculo` e endpoints `/motor/*`.
-- **Pendente depois:** fases seguintes (Relatórios, seed, testes de integração, RBAC,
+  (Módulo Posições — Parte 7), Fase 6 (Motor MtM — Parte 8).
+- **Próximo passo: Fase 7 — Relatórios (Parte 9).** As 4 visões consolidadas (§5.2.5)
+  sobre o histórico de `mtm_diario` produzido pelo motor.
+- **Pendente depois:** fases seguintes (seed/dataset, testes de integração, RBAC,
   segurança, etc.).
 
 ## Pastas a ignorar

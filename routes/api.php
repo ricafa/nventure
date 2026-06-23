@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\MotorController;
 use App\Http\Controllers\Api\V1\PosicaoController;
 use App\Http\Controllers\Api\V1\PrecoController;
 use App\Http\Controllers\Api\V1\ProdutoController;
@@ -35,4 +36,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('posicoes/{id}', [PosicaoController::class, 'destroy'])->whereNumber('id'); // só sem MtM (D-502)
     Route::get('posicoes/{id}/movimentacoes', [PosicaoController::class, 'movimentacoes'])->whereNumber('id');
     Route::post('posicoes/{id}/movimentacoes', [PosicaoController::class, 'movimentar'])->whereNumber('id');
+
+    // §5.2.4 Motor MtM (AuthZ por perfil é Fase 10, D-612)
+    Route::post('motor/processar', [MotorController::class, 'processar']);
+    Route::get('motor/execucoes', [MotorController::class, 'index']);
+    Route::get('motor/execucoes/{id}', [MotorController::class, 'show'])->whereNumber('id');
 });

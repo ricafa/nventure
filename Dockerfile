@@ -25,4 +25,4 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 EXPOSE 8000
 
-CMD ["sh", "-lc", "composer install && npm install && npm run build && php artisan key:generate --ansi --force && php artisan optimize && php artisan serve --host=0.0.0.0 --port=8000"]
+CMD ["sh", "-lc", "composer install && npm install && npm run build && php artisan key:generate --ansi --force && php artisan optimize:clear && php artisan serve --host=0.0.0.0 --port=8000"]
